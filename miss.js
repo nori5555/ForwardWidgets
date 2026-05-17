@@ -1,9 +1,9 @@
 var WidgetMetadata = {
-    id: "missav_global_search",
+    id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "原汁原味版：仅添加全局搜索入口，不改变任何原版逻辑",
-    version: "3.1.0",
+    description: "终极双修版：模块内维持秒播 + 全局搜索原生详情页",
+    version: "3.2.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -26,23 +26,12 @@ var WidgetMetadata = {
                         { title: "🇯🇵 东京热", value: "dm29/cn/tokyohot" },
                         { title: "🇨🇳 中文字幕", value: "dm265/cn/chinese-subtitle" }
                     ] 
-                },
-                {
-                    name: "sort",
-                    title: "排序",
-                    type: "enumeration",
-                    value: "released_at",
-                    enumOptions: [
-                        { title: "发布日期", value: "released_at" },
-                        { title: "今日浏览", value: "today_views" },
-                        { title: "总浏览量", value: "views" },
-                        { title: "收藏数", value: "saved" }
-                    ]
                 }
             ]
         },
+        // 保留你原版的模块内搜索（享受秒播）
         {
-            title: "🔍 搜索视频",
+            title: "🔍 模块内搜索",
             functionName: "searchList",
             type: "video",
             params: [
@@ -51,34 +40,36 @@ var WidgetMetadata = {
             ]
         }
     ],
-    // ✨ 仅仅在原版基础上增加了这一个全局搜索配置
+    // 独立出来的全局搜索（享受原生页面）
     search: {
-        title: "MissAV 搜索",
-        functionName: "searchList",
+        title: "全局搜索",
+        functionName: "globalSearch",
         params: [
-            { name: "keyword", title: "关键词", type: "input", value: "" },
+            { name: "keyword", title: "输入番号或关键词", type: "input", value: "" },
             { name: "page", title: "页码", type: "page" }
         ]
+    },
+    detail: {
+        title: "视频详情",
+        functionName: "loadDetail"
     }
 };
 
 const BASE_URL = "https://missav.ai";
 const HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9",
     "Referer": "https://missav.ai/",
-    "Connection": "keep-alive"
 };
 
-// --- 完全保留你最初的解析代码，一字未改 ---
-function parseVideoList(html) {
-    if (!html || html.includes("Just a moment")) {
-        return [{ id: "err_cf", type: "text", title: "被 Cloudflare 拦截", subTitle: "请稍后重试" }];
-    }
+// 核心改造1：加了一个 isGlobal 参数来打标记
+function parseVideoList(html, isGlobal = false) {
+    if (!html || html.includes("Just a moment")) return [];
 
     const $ = Widget.html.load(html);
     const results = [];
+    const prefix = isGlobal ? "SEARCH::" : "MODULE::";
 
     $("div.group").each((i, el) => {
         const $el = $(el);
@@ -90,64 +81,80 @@ function parseVideoList(html) {
             const $img = $el.find("img");
             const imgSrc = $img.attr("data-src") || $img.attr("src");
             const duration = $el.find(".absolute.bottom-1.right-1").text().trim();
-
             const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
-            const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg`;
-
+            
             results.push({
-                id: href,
-                type: "link", 
+                // 把暗号藏在 ID 里传给详情页
+                id: prefix + href,
+                type: "link",    
                 title: title,
-                coverUrl: coverUrl || imgSrc, 
-                link: href,
+                coverUrl: imgSrc, 
                 description: `时长: ${duration} | 番号: ${videoId}`,
                 customHeaders: HEADERS
             });
         }
     });
-
-    return results.length > 0 ? results : [{ id: "empty", type: "text", title: "没有找到相关视频" }];
+    return results;
 }
 
+// 模块浏览
 async function loadList(params = {}) {
-    const { page = 1, category = "dm588/cn/release", sort = "released_at" } = params;
-    let url = `${BASE_URL}/${category}?sort=${sort}`;
-    if (page > 1) url += `&page=${page}`;
-
+    const { page = 1, category = "dm588/cn/release" } = params;
+    let url = `${BASE_URL}/${category}`;
+    if (page > 1) url += `?page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data);
-    } catch (e) {
-        return [{ id: "err", type: "text", title: "加载失败", subTitle: e.message }];
-    }
+        return parseVideoList(res.data, false);
+    } catch (e) { return []; }
 }
 
+// 模块内搜索（原版）
 async function searchList(params = {}) {
-    const keyword = params.keyword || params.query || "";
+    const keyword = (params.keyword || params.query || "").trim();
+    if (!keyword) return [];
     const page = params.page || 1;
-    
-    if (!keyword) {
-        return [{ id: "tip", type: "text", title: "请输入关键词开始搜索" }];
-    }
-
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}`;
     if (page > 1) url += `?page=${page}`;
-
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data);
-    } catch (e) {
-        return [{ id: "err", type: "text", title: "搜索失败", subTitle: e.message }];
-    }
+        return parseVideoList(res.data, false);
+    } catch (e) { return []; }
 }
 
-// --- 完全保留你最初的快播逻辑，只兼容了全局搜索的传参 ---
-async function loadDetail(link) {
-    // ✨ 唯一增加的 3 行代码：把全局搜索传过来的包裹对象，剥离成原本的纯网址文本
-    let targetUrl = link;
-    if (typeof link === 'object' && link !== null) {
-        targetUrl = link.id || link.link;
+// 全局主搜索（新版）
+async function globalSearch(params = {}) {
+    const keyword = (params.keyword || params.query || "").trim();
+    if (!keyword) return [];
+    const page = params.page || 1;
+    let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}`;
+    if (page > 1) url += `?page=${page}`;
+    try {
+        const res = await Widget.http.get(url, { headers: HEADERS });
+        // 这里的 true 意味着会打上 SEARCH:: 标记
+        return parseVideoList(res.data, true);
+    } catch (e) { return []; }
+}
+
+// 核心改造2：智能分流（完美解决冲突）
+async function loadDetail(item) {
+    let targetUrl = "";
+    if (item && typeof item === 'object') {
+        targetUrl = item.id || item.link || item.url || "";
+    } else {
+        targetUrl = String(item || "");
     }
+
+    let isGlobalSearch = false;
+    // 识别是不是从全局搜索点进来的
+    if (targetUrl.startsWith("SEARCH::")) {
+        isGlobalSearch = true;
+        targetUrl = targetUrl.substring(8); // 剥离标记还原真实网址
+    } else if (targetUrl.startsWith("MODULE::")) {
+        isGlobalSearch = false;
+        targetUrl = targetUrl.substring(8);
+    }
+
+    if (!targetUrl.startsWith('http')) return [];
 
     try {
         const res = await Widget.http.get(targetUrl, { headers: HEADERS });
@@ -159,7 +166,6 @@ async function loadDetail(link) {
         
         $('script').each((i, el) => {
             const scriptContent = $(el).html() || "";
-            
             if (scriptContent.includes('surrit.com') && scriptContent.includes('.m3u8')) {
                 const matches = scriptContent.match(/https:\/\/surrit\.com\/[a-f0-9\-]+\/[^"'\s]*\.m3u8/g);
                 if (matches && matches.length > 0) {
@@ -167,7 +173,6 @@ async function loadDetail(link) {
                     return false; 
                 }
             }
-            
             if (!videoUrl && scriptContent.includes('eval(function')) {
                 const uuidMatches = scriptContent.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
                 if (uuidMatches && uuidMatches.length > 0) {
@@ -176,30 +181,43 @@ async function loadDetail(link) {
                 }
             }
         });
-
         if (!videoUrl) {
             const matchSimple = html.match(/source\s*=\s*['"]([^'"]+)['"]/);
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
         if (videoUrl) {
-            return [{
-                id: targetUrl,
-                type: "video",
-                title: title,
-                videoUrl: videoUrl,
-                playerType: "system",
-                customHeaders: {
-                    "Referer": "https://missav.ai/",
-                    "User-Agent": HEADERS["User-Agent"],
-                    "Origin": "https://missav.ai"
-                }
-            }];
-        } else {
-            return [{ id: "err", type: "text", title: "解析失败", subTitle: "未找到播放地址" }];
+            // 如果是从全局搜索进来的，喂给它原生页面格式！
+            if (isGlobalSearch) {
+                return {
+                    title: title,
+                    coverUrl: (typeof item === 'object') ? (item.coverUrl || "") : "",
+                    episodes: [
+                        {
+                            title: "播放列表",
+                            urls: [
+                                {
+                                    name: "▶ 点击播放正片",
+                                    url: videoUrl,
+                                    playerType: "system",
+                                    customHeaders: { "Referer": "https://missav.ai/" }
+                                }
+                            ]
+                        }
+                    ]
+                };
+            } else {
+                // 如果是从模块（原版）进来的，喂给它原汁原味的秒播格式！
+                return [{
+                    id: targetUrl,
+                    type: "video",
+                    title: title,
+                    videoUrl: videoUrl,
+                    playerType: "system",
+                    customHeaders: { "Referer": "https://missav.ai/" }
+                }];
+            }
         }
-
-    } catch (e) {
-        return [{ id: "err", type: "text", title: "请求错误", subTitle: e.message }];
-    }
+    } catch (e) {}
+    return [];
 }
