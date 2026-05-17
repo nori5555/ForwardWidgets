@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_global_search",
     title: "MissAV",
     author: "Forward_User",
-    description: "支持全局搜索与直接播放的完整修复版",
-    version: "3.0.2",
+    description: "终极修正版：修复点击无反应问题，支持直连播放",
+    version: "3.0.3",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -28,7 +28,6 @@ var WidgetMetadata = {
             ]
         }
     ],
-    // ⬇️ 【修复1】全局搜索入口
     search: {
         title: "MissAV 搜索",
         functionName: "searchList",
@@ -37,7 +36,6 @@ var WidgetMetadata = {
             { name: "page", title: "页码", type: "page" }
         ]
     },
-    // ⬇️ 【修复2】详情与播放解析入口（缺失这个就会导致无法点击！）
     detail: {
         title: "视频详情",
         functionName: "loadDetail"
@@ -52,7 +50,6 @@ const HEADERS = {
     "Referer": "https://missav.ai/",
 };
 
-// 提取通用列表解析逻辑
 function parseVideoList(html) {
     if (!html || html.includes("Just a moment")) return [];
 
@@ -69,23 +66,20 @@ function parseVideoList(html) {
             const $img = $el.find("img");
             const imgSrc = $img.attr("data-src") || $img.attr("src");
             const duration = $el.find(".absolute.bottom-1.right-1").text().trim();
-
             const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
             
             results.push({
-                id: href,         // 将网址作为 id 传给 loadDetail
-                type: "video",    // 告诉 Forward 这是一个视频对象
+                id: href,
+                type: "video",    
                 title: title,
                 coverUrl: imgSrc, 
-                description: `时长: ${duration} | 番号: ${videoId}`,
-                customHeaders: HEADERS
+                description: `时长: ${duration} | 番号: ${videoId}`
             });
         }
     });
     return results;
 }
 
-// 模块浏览
 async function loadList(params = {}) {
     const { page = 1, category = "dm588/cn/release" } = params;
     let url = `${BASE_URL}/${category}`;
@@ -100,7 +94,6 @@ async function loadList(params = {}) {
     }
 }
 
-// 全局搜索触发的函数
 async function searchList(params = {}) {
     const keyword = (params.keyword || params.query || "").trim();
     if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词" }];
@@ -118,19 +111,23 @@ async function searchList(params = {}) {
     }
 }
 
-// 【修复3】点击搜索结果后的解析播放逻辑，返回标准的 Forward 详情页对象
-async function loadDetail(id) {
-    if (!id.startsWith('http')) return [];
+// 【修复核心】：兼容 Forward 的对象传参，提取真正的网址字符串
+async function loadDetail(item) {
+    // 判断传进来的是对象还是字符串，如果是对象则提取 id 字段
+    const targetUrl = (typeof item === 'object') ? (item.id || item.url || item.link) : item;
+
+    if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.startsWith('http')) {
+        return [{ id: "err", type: "text", title: "解析错误", subTitle: "无效的视频链接参数" }];
+    }
 
     try {
-        const res = await Widget.http.get(id, { headers: HEADERS });
+        const res = await Widget.http.get(targetUrl, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         let videoUrl = "";
         
-        // 核心解密嗅探
         $('script').each((i, el) => {
             const scriptContent = $(el).html() || "";
             if (scriptContent.includes('surrit.com') && scriptContent.includes('.m3u8')) {
@@ -149,23 +146,24 @@ async function loadDetail(id) {
             }
         });
 
+        if (!videoUrl) {
+            const matchSimple = html.match(/source\s*=\s*['"]([^'"]+)['"]/);
+            if (matchSimple) videoUrl = matchSimple[1];
+        }
+
         if (videoUrl) {
-            // 返回标准的详情页结构：包含集数（单集）与播放源
-            return {
+            // 直接返回数组格式，Forward 会直接拉起原生播放器起播
+            return [{
+                id: targetUrl,
+                type: "video",
                 title: title,
-                episodes: [
-                    {
-                        id: id + "_play",
-                        title: "▶ 点击播放正片",
-                        videoUrl: videoUrl,
-                        playerType: "system",
-                        customHeaders: {
-                            "Referer": "https://missav.ai/",
-                            "User-Agent": HEADERS["User-Agent"]
-                        }
-                    }
-                ]
-            };
+                videoUrl: videoUrl,
+                playerType: "system",
+                customHeaders: {
+                    "Referer": "https://missav.ai/",
+                    "User-Agent": HEADERS["User-Agent"]
+                }
+            }];
         } else {
             return [{ id: "err", type: "text", title: "解析失败", subTitle: "无法提取视频流" }];
         }
