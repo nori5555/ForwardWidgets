@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极双修修复版：修复全局搜索按钮不显示的问题",
-    version: "3.2.1",
+    description: "全局搜索完美版（统一使用详情页播放）",
+    version: "3.3.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -26,6 +26,18 @@ var WidgetMetadata = {
                         { title: "🇯🇵 东京热", value: "dm29/cn/tokyohot" },
                         { title: "🇨🇳 中文字幕", value: "dm265/cn/chinese-subtitle" }
                     ] 
+                },
+                {
+                    name: "sort",
+                    title: "排序",
+                    type: "enumeration",
+                    value: "released_at",
+                    enumOptions: [
+                        { title: "发布日期", value: "released_at" },
+                        { title: "今日浏览", value: "today_views" },
+                        { title: "总浏览量", value: "views" },
+                        { title: "收藏数", value: "saved" }
+                    ]
                 }
             ]
         },
@@ -39,14 +51,16 @@ var WidgetMetadata = {
             ]
         }
     ],
+    // ✨ 开启全局主页搜索
     search: {
-        title: "全局搜索",
-        functionName: "globalSearch",
+        title: "MissAV 搜索",
+        functionName: "searchList",
         params: [
-            { name: "keyword", title: "输入番号或关键词", type: "input", value: "" },
+            { name: "keyword", title: "关键词", type: "input", value: "" },
             { name: "page", title: "页码", type: "page" }
         ]
     },
+    // ✨ 声明详情页（开启全局搜索必须要有这个）
     detail: {
         title: "视频详情",
         functionName: "loadDetail"
@@ -56,17 +70,19 @@ var WidgetMetadata = {
 const BASE_URL = "https://missav.ai";
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9",
-    "Referer": "https://missav.ai/",
+    "Referer": "https://missav.ai/"
 };
 
-function parseVideoList(html, isGlobal = false) {
-    if (!html || html.includes("Just a moment")) return [];
+// 保持原汁原味的列表解析
+function parseVideoList(html) {
+    if (!html || html.includes("Just a moment")) {
+        return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍后重试" }];
+    }
 
     const $ = Widget.html.load(html);
     const results = [];
-    const prefix = isGlobal ? "SEARCH::" : "MODULE::";
 
     $("div.group").each((i, el) => {
         const $el = $(el);
@@ -79,72 +95,55 @@ function parseVideoList(html, isGlobal = false) {
             const imgSrc = $img.attr("data-src") || $img.attr("src");
             const duration = $el.find(".absolute.bottom-1.right-1").text().trim();
             const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
-            
+            const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg`;
+
             results.push({
-                id: prefix + href,
-                type: "video",    // 统一改为 video 类型
+                id: href,
+                type: "link", // 必须是 link 才能触发详情页
                 title: title,
-                coverUrl: imgSrc, 
-                description: `时长: ${duration} | 番号: ${videoId}`,
-                customHeaders: HEADERS
+                coverUrl: coverUrl || imgSrc, 
+                description: `时长: ${duration} | 番号: ${videoId}`
             });
         }
     });
-    return results;
+
+    return results.length > 0 ? results : [{ id: "empty", type: "text", title: "未找到内容" }];
 }
 
 async function loadList(params = {}) {
-    const { page = 1, category = "dm588/cn/release" } = params;
-    let url = `${BASE_URL}/${category}`;
-    if (page > 1) url += `?page=${page}`;
+    const { page = 1, category = "dm588/cn/release", sort = "released_at" } = params;
+    let url = `${BASE_URL}/${category}?sort=${sort}`;
+    if (page > 1) url += `&page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, false);
-    } catch (e) { return []; }
+        return parseVideoList(res.data);
+    } catch (e) {
+        return [{ id: "err", type: "text", title: "加载失败" }];
+    }
 }
 
 async function searchList(params = {}) {
     const keyword = (params.keyword || params.query || "").trim();
-    if (!keyword) return [];
+    if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词" }];
     const page = params.page || 1;
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}`;
     if (page > 1) url += `?page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, false);
-    } catch (e) { return []; }
+        return parseVideoList(res.data);
+    } catch (e) {
+        return [{ id: "err", type: "text", title: "搜索失败" }];
+    }
 }
 
-async function globalSearch(params = {}) {
-    const keyword = (params.keyword || params.query || "").trim();
-    if (!keyword) return [];
-    const page = params.page || 1;
-    let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}`;
-    if (page > 1) url += `?page=${page}`;
-    try {
-        const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, true);
-    } catch (e) { return []; }
-}
-
+// 核心修复：输出标准、带播放按钮的原生详情页
 async function loadDetail(item) {
-    let targetUrl = "";
-    if (item && typeof item === 'object') {
-        targetUrl = item.id || item.link || item.url || "";
-    } else {
-        targetUrl = String(item || "");
-    }
+    // 兼容全局搜索传来的包裹对象
+    let targetUrl = typeof item === 'object' ? (item.id || item.link || item.url) : item;
 
-    let isGlobalSearch = false;
-    if (targetUrl.startsWith("SEARCH::")) {
-        isGlobalSearch = true;
-        targetUrl = targetUrl.substring(8);
-    } else if (targetUrl.startsWith("MODULE::")) {
-        isGlobalSearch = false;
-        targetUrl = targetUrl.substring(8);
+    if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.startsWith('http')) {
+        return { title: "解析错误，无效链接", episodes: [] };
     }
-
-    if (!targetUrl.startsWith('http')) return [];
 
     try {
         const res = await Widget.http.get(targetUrl, { headers: HEADERS });
@@ -171,40 +170,35 @@ async function loadDetail(item) {
                 }
             }
         });
+
         if (!videoUrl) {
             const matchSimple = html.match(/source\s*=\s*['"]([^'"]+)['"]/);
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
         if (videoUrl) {
-            if (isGlobalSearch) {
-                // 💡 修复核心：去掉冗余嵌套，换成最标准的扁平数组格式，按钮绝对能出来了！
-                return {
-                    title: title,
-                    coverUrl: (typeof item === 'object') ? (item.coverUrl || "") : "",
-                    description: (typeof item === 'object') ? (item.description || "") : "",
-                    episodes: [
-                        {
-                            id: targetUrl + "_play",
-                            type: "video",
-                            title: "▶ 点击播放正片",
-                            videoUrl: videoUrl,
-                            playerType: "system",
-                            customHeaders: { "Referer": "https://missav.ai/" }
-                        }
-                    ]
-                };
-            } else {
-                return [{
-                    id: targetUrl,
-                    type: "video",
-                    title: title,
-                    videoUrl: videoUrl,
-                    playerType: "system",
-                    customHeaders: { "Referer": "https://missav.ai/" }
-                }];
-            }
+            // ✨ 修复关键：严格按照 Forward 要求的 urls 嵌套格式，按钮必定显示！
+            return {
+                title: title,
+                coverUrl: (typeof item === 'object' && item.coverUrl) ? item.coverUrl : "",
+                description: (typeof item === 'object' && item.description) ? item.description : "",
+                episodes: [
+                    {
+                        title: "播放线路",
+                        urls: [
+                            {
+                                name: "▶ 立即播放",
+                                url: videoUrl,
+                                customHeaders: HEADERS
+                            }
+                        ]
+                    }
+                ]
+            };
+        } else {
+            return { title: "提取视频流失败", episodes: [] };
         }
-    } catch (e) {}
-    return [];
+    } catch (e) {
+        return { title: "请求出错", episodes: [] };
+    }
 }
