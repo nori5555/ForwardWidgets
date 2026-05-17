@@ -1,9 +1,9 @@
-WidgetMetadata = {
+var WidgetMetadata = {
     id: "missav_makka_play",
-    title: "MissAV_ovo1",
-    author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖+AI",
-    description: "简易的missav模块（已集成全局搜索播放源）",
-    version: "2.2.1",
+    title: "MissAV_ovo",
+    author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖",
+    description: "简易的missav模块（已集成全局搜索与本地播放双解密）",
+    version: "2.2.5",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -50,11 +50,11 @@ WidgetMetadata = {
                 { name: "page", title: "页码", type: "page" }
             ]
         },
-        // --- 核心新增：全局播放源嗅探模块 ---
+        // --- 核心修复：添加全局搜索播放源模块 ---
         {
             id: "loadResource",
             title: "MissAV 播放源",
-            description: "Forward全局调用：自动检索番号并返回直连播放源",
+            description: "Forward全局调用：主页搜索自动检索播放源",
             functionName: "loadResource",
             type: "stream",
             params: []
@@ -74,7 +74,7 @@ const HEADERS = {
 // --- 公共解析逻辑 ---
 function parseVideoList(html) {
     if (!html || html.includes("Just a moment")) {
-        return [{ id: "err_cf", type: "text", title: "被 Cloudflare 拦截", subTitle: "请稍后重试" }];
+        return [];
     }
 
     const $ = Widget.html.load(html);
@@ -141,37 +141,18 @@ async function searchList(params = {}) {
     }
 }
 
-// 3. 核心新增：基于瓜子影视逻辑的全局搜索与流媒体提取器
-async function loadResource(params = {}) {
-    // 捕获 Forward 传过来的影片名/番号
-    const rawSearch = String(params.seriesName || params.title || "").trim();
-    if (!rawSearch) return [];
-
-    // 去除多余的空格或季数干扰，聚焦番号核心
-    const searchKeyword = rawSearch.replace(/第\s*\d+\s*[季部]/g, "").trim();
-    const searchUrl = `${BASE_URL}/cn/search/${encodeURIComponent(searchKeyword)}`;
-
+// 3. 详情页核心解析器（补齐该函数：供独立模块内点击视频时直接调用）
+async function loadDetail(link) {
     try {
-        // 第一步：去 MissAV 搜索该番号
-        const searchRes = await Widget.http.get(searchUrl, { headers: HEADERS });
-        const candidates = parseVideoList(searchRes.data);
-        if (!candidates || candidates.length === 0) return [];
-
-        // 默认取搜索结果的第一个（通常是最精准匹配的番号结果）
-        const bestMatchHref = candidates[0].link;
-        if (!bestMatchHref) return [];
-
-        // 第二步：直接请求该详情页，解析 m3u8 播放流 (整合原 loadDetail 核心逻辑)
-        const detailRes = await Widget.http.get(bestMatchHref, { headers: HEADERS });
-        const html = detailRes.data;
+        const res = await Widget.http.get(link, { headers: HEADERS });
+        const html = res.data;
         const $ = Widget.html.load(html);
         
+        let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         let videoUrl = "";
-
+        
         $('script').each((i, el) => {
             const scriptContent = $(el).html() || "";
-            
-            // 嗅探模式 1: surrit 直连
             if (scriptContent.includes('surrit.com') && scriptContent.includes('.m3u8')) {
                 const matches = scriptContent.match(/https:\/\/surrit\.com\/[a-f0-9\-]+\/[^"'\s]*\.m3u8/g);
                 if (matches && matches.length > 0) {
@@ -179,8 +160,6 @@ async function loadResource(params = {}) {
                     return false; 
                 }
             }
-            
-            // 嗅探模式 2: eval 解密 uuid 拼接
             if (!videoUrl && scriptContent.includes('eval(function')) {
                 const uuidMatches = scriptContent.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
                 if (uuidMatches && uuidMatches.length > 0) {
@@ -190,29 +169,60 @@ async function loadResource(params = {}) {
             }
         });
 
-        // 嗅探模式 3: 标签兜底
         if (!videoUrl) {
             const matchSimple = html.match(/source\s*=\s*['"]([^'"]+)['"]/);
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
-        // 第三步：若成功拿到流地址，规范化输出给 Forward 混流层
         if (videoUrl) {
             return [{
-                name: "MissAV 极速源",
-                description: `番号: ${candidates[0].description || searchKeyword}\n解析状态: 成功`,
-                url: videoUrl,
+                id: link,
+                type: "video",
+                title: title,
+                videoUrl: videoUrl,
+                playerType: "system",
                 customHeaders: {
                     "Referer": "https://missav.ai/",
                     "User-Agent": HEADERS["User-Agent"],
                     "Origin": "https://missav.ai"
                 }
             }];
+        } else {
+            return [{ id: "err", type: "text", title: "解析失败", subTitle: "未找到播放地址" }];
         }
     } catch (e) {
-        // 报错则降级返回空数组，不影响其他源的正常检索
+        return [{ id: "err", type: "text", title: "请求错误", subTitle: e.message }];
+    }
+}
+
+// 4. 全局搜索流媒体提取器（对接 Forward 主页大搜索框混流层）
+async function loadResource(params = {}) {
+    const rawSearch = String(params.seriesName || params.title || "").trim();
+    if (!rawSearch) return [];
+
+    const searchKeyword = rawSearch.replace(/第\s*\d+\s*[季部]/g, "").trim();
+    const searchUrl = `${BASE_URL}/cn/search/${encodeURIComponent(searchKeyword)}`;
+
+    try {
+        const searchRes = await Widget.http.get(searchUrl, { headers: HEADERS });
+        const candidates = parseVideoList(searchRes.data);
+        if (!candidates || candidates.length === 0) return [];
+
+        const bestMatchHref = candidates[0].link;
+        if (!bestMatchHref) return [];
+
+        // 完美联动：直接调用复用上面的详情页解密逻辑
+        const detailResult = await loadDetail(bestMatchHref);
+        if (detailResult && detailResult[0] && detailResult[0].videoUrl) {
+            return [{
+                name: "MissAV 极速源",
+                description: `番号: ${searchKeyword}\n状态: 全局解析成功`,
+                url: detailResult[0].videoUrl,
+                customHeaders: detailResult[0].customHeaders
+            }];
+        }
+    } catch (e) {
         try { console.log("[MissAV_Stream_Error] " + e.message); } catch(err){}
     }
-
     return [];
 }
