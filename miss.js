@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极双修版：模块内维持秒播 + 全局搜索原生详情页",
-    version: "3.2.0",
+    description: "终极双修修复版：修复全局搜索按钮不显示的问题",
+    version: "3.2.1",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -29,7 +29,6 @@ var WidgetMetadata = {
                 }
             ]
         },
-        // 保留你原版的模块内搜索（享受秒播）
         {
             title: "🔍 模块内搜索",
             functionName: "searchList",
@@ -40,7 +39,6 @@ var WidgetMetadata = {
             ]
         }
     ],
-    // 独立出来的全局搜索（享受原生页面）
     search: {
         title: "全局搜索",
         functionName: "globalSearch",
@@ -63,7 +61,6 @@ const HEADERS = {
     "Referer": "https://missav.ai/",
 };
 
-// 核心改造1：加了一个 isGlobal 参数来打标记
 function parseVideoList(html, isGlobal = false) {
     if (!html || html.includes("Just a moment")) return [];
 
@@ -84,9 +81,8 @@ function parseVideoList(html, isGlobal = false) {
             const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
             
             results.push({
-                // 把暗号藏在 ID 里传给详情页
                 id: prefix + href,
-                type: "link",    
+                type: "video",    // 统一改为 video 类型
                 title: title,
                 coverUrl: imgSrc, 
                 description: `时长: ${duration} | 番号: ${videoId}`,
@@ -97,7 +93,6 @@ function parseVideoList(html, isGlobal = false) {
     return results;
 }
 
-// 模块浏览
 async function loadList(params = {}) {
     const { page = 1, category = "dm588/cn/release" } = params;
     let url = `${BASE_URL}/${category}`;
@@ -108,7 +103,6 @@ async function loadList(params = {}) {
     } catch (e) { return []; }
 }
 
-// 模块内搜索（原版）
 async function searchList(params = {}) {
     const keyword = (params.keyword || params.query || "").trim();
     if (!keyword) return [];
@@ -121,7 +115,6 @@ async function searchList(params = {}) {
     } catch (e) { return []; }
 }
 
-// 全局主搜索（新版）
 async function globalSearch(params = {}) {
     const keyword = (params.keyword || params.query || "").trim();
     if (!keyword) return [];
@@ -130,12 +123,10 @@ async function globalSearch(params = {}) {
     if (page > 1) url += `?page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        // 这里的 true 意味着会打上 SEARCH:: 标记
         return parseVideoList(res.data, true);
     } catch (e) { return []; }
 }
 
-// 核心改造2：智能分流（完美解决冲突）
 async function loadDetail(item) {
     let targetUrl = "";
     if (item && typeof item === 'object') {
@@ -145,10 +136,9 @@ async function loadDetail(item) {
     }
 
     let isGlobalSearch = false;
-    // 识别是不是从全局搜索点进来的
     if (targetUrl.startsWith("SEARCH::")) {
         isGlobalSearch = true;
-        targetUrl = targetUrl.substring(8); // 剥离标记还原真实网址
+        targetUrl = targetUrl.substring(8);
     } else if (targetUrl.startsWith("MODULE::")) {
         isGlobalSearch = false;
         targetUrl = targetUrl.substring(8);
@@ -187,27 +177,24 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
-            // 如果是从全局搜索进来的，喂给它原生页面格式！
             if (isGlobalSearch) {
+                // 💡 修复核心：去掉冗余嵌套，换成最标准的扁平数组格式，按钮绝对能出来了！
                 return {
                     title: title,
                     coverUrl: (typeof item === 'object') ? (item.coverUrl || "") : "",
+                    description: (typeof item === 'object') ? (item.description || "") : "",
                     episodes: [
                         {
-                            title: "播放列表",
-                            urls: [
-                                {
-                                    name: "▶ 点击播放正片",
-                                    url: videoUrl,
-                                    playerType: "system",
-                                    customHeaders: { "Referer": "https://missav.ai/" }
-                                }
-                            ]
+                            id: targetUrl + "_play",
+                            type: "video",
+                            title: "▶ 点击播放正片",
+                            videoUrl: videoUrl,
+                            playerType: "system",
+                            customHeaders: { "Referer": "https://missav.ai/" }
                         }
                     ]
                 };
             } else {
-                // 如果是从模块（原版）进来的，喂给它原汁原味的秒播格式！
                 return [{
                     id: targetUrl,
                     type: "video",
