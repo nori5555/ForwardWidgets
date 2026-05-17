@@ -1,9 +1,9 @@
 WidgetMetadata = {
     id: "missav_makka_play",
-    title: "MissAV_ovo",
-    author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖",
+    title: "MissAV_ovo1",
+    author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖+AI",
     description: "简易的missav模块（已集成全局搜索播放源）",
-    version: "2.2.0",
+    version: "2.2.1",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
