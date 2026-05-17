@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_global_search",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极修正版：修复点击无反应问题，支持直连播放",
-    version: "3.0.3",
+    description: "原生详情页完美适配版：修复搜索后无法播放",
+    version: "3.0.4",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -111,13 +111,12 @@ async function searchList(params = {}) {
     }
 }
 
-// 【修复核心】：兼容 Forward 的对象传参，提取真正的网址字符串
+// 【修复核心】：完全适配 Forward 原生详情页的返回值结构
 async function loadDetail(item) {
-    // 判断传进来的是对象还是字符串，如果是对象则提取 id 字段
     const targetUrl = (typeof item === 'object') ? (item.id || item.url || item.link) : item;
 
     if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.startsWith('http')) {
-        return [{ id: "err", type: "text", title: "解析错误", subTitle: "无效的视频链接参数" }];
+        throw new Error("无效的视频链接");
     }
 
     try {
@@ -152,22 +151,31 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
-            // 直接返回数组格式，Forward 会直接拉起原生播放器起播
-            return [{
-                id: targetUrl,
-                type: "video",
+            // 👇 必须返回带有 episodes 和 urls 的对象，否则原生详情页无法渲染播放按钮！
+            return {
                 title: title,
-                videoUrl: videoUrl,
-                playerType: "system",
-                customHeaders: {
-                    "Referer": "https://missav.ai/",
-                    "User-Agent": HEADERS["User-Agent"]
-                }
-            }];
+                coverUrl: (typeof item === 'object') ? item.coverUrl : "",
+                description: (typeof item === 'object') ? item.description : "",
+                episodes: [
+                    {
+                        title: "播放线路",
+                        urls: [
+                            {
+                                name: "正片直连",
+                                url: videoUrl,
+                                customHeaders: {
+                                    "Referer": "https://missav.ai/",
+                                    "User-Agent": HEADERS["User-Agent"]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            };
         } else {
-            return [{ id: "err", type: "text", title: "解析失败", subTitle: "无法提取视频流" }];
+            throw new Error("无法提取视频流");
         }
     } catch (e) {
-        return [{ id: "err", type: "text", title: "请求失败", subTitle: e.message }];
+        throw new Error(e.message);
     }
 }
