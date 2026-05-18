@@ -1,9 +1,9 @@
 var WidgetMetadata = {
-    id: "missav_AI_play",
+    id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
     description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
-    version: "3.3.1",
+    version: "3.3.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
