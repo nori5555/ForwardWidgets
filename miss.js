@@ -3,7 +3,7 @@ var WidgetMetadata = {
     title: "MissAV_ovo",
     author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖+AI",
     description: "简易的missav模块 (完美融入全局搜索)",
-    version: "2.1.2",
+    version: "3.3.8",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
