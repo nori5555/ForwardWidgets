@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极完美版：修复高清画质、历史记录防失效、选集错位问题",
-    version: "4.0.0",
+    description: "终极无瑕版：全量对齐原生播放器，彻底修复错位与画质",
+    version: "4.1.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -107,9 +107,8 @@ function parseVideoList(html) {
             results.push({
                 id: href, 
                 type: "url", 
-                // 🔴 修复1：强制声明为 tv（剧集），这样后续的 childItems 才会乖乖进入“选集”列表，绝不乱跑！
-                mediaType: "tv", 
-                videoUrl: null, 
+                mediaType: "tv", // 强制剧集模式
+                videoUrl: null,  // 🔴 修复1：坚决不放根节点链接，杜绝生成糊画质的顶部按钮
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -156,7 +155,7 @@ async function globalSearch(params = {}) {
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 详情与播放解析（终极路由分发）
+// 详情与播放解析
 async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetId || typeof targetId !== 'string') return [];
@@ -164,10 +163,10 @@ async function loadDetail(item) {
     let fetchUrl = targetId;
     let isEpisodeClick = false;
 
-    // 🔴 修复2：拦截历史记录点击。如果 ID 包含 _ep1，说明用户是从【继续观看】点进来的，或者是点击了选集按钮！
-    if (fetchUrl.includes("_ep1")) {
+    // 🔴 历史记录/继续观看的完美拦截器
+    if (fetchUrl.endsWith("_episode")) {
         isEpisodeClick = true;
-        fetchUrl = fetchUrl.replace("_ep1", ""); // 洗白 ID，还原出真实的视频网页链接去重新抓包
+        fetchUrl = fetchUrl.replace("_episode", ""); 
     }
 
     try {
@@ -208,33 +207,35 @@ async function loadDetail(item) {
 
         if (videoUrl) {
             if (isEpisodeClick) {
-                // 🔴 修复3：点击选集或【继续观看】时，返回带 playerType 的数组进行瞬间高清播放！
+                // 🔴 修复2：从【历史记录】点进来，直接返回系统播放器接管的高清视频对象！永不过期！
                 return [{
                     id: targetId, 
                     type: "video", 
-                    title: title,
-                    videoUrl: videoUrl, // 这是刚刚抓取到的新鲜、不过期链接
-                    playerType: "system", // ✨ 唤醒系统原生超清播放器！
+                    title: title || "正在播放",
+                    videoUrl: videoUrl,
+                    playerType: "system", // ✨ 高清内核唤醒
                     customHeaders: PLAY_HEADERS
                 }];
             } else {
-                // 正常点击列表时，渲染稳如泰山的详情页骨架
+                // 🔴 修复3：正常的详情页渲染。干掉根节点链接，强制子集为 video 类型！
                 return {
                     id: targetId,
                     type: "url", 
-                    mediaType: "tv", // 配合前面的 tv，彻底根除“相似作品”错位
+                    mediaType: "tv", 
                     title: title || "未知标题",
                     posterPath: finalCover,
                     backdropPath: finalCover,
                     link: fetchUrl,
+                    // 绝不放 videoUrl 在这里！
                     childItems: [
                         {
-                            id: fetchUrl + "_ep1", // 点击这里会触发上面的 isEpisodeClick 拦截
-                            type: "url", // 必须是 url，让它把任务交给上面的拦截器去要高清链接
+                            id: fetchUrl + "_episode", // 绑定拦截器
+                            type: "video", // ✨ 必须是 video！否则就会被当成网页跑到相似作品去！
                             mediaType: "episode", 
                             title: "▶ 点击播放高清正片",
-                            posterPath: finalCover,
-                            customHeaders: HEADERS
+                            videoUrl: videoUrl,
+                            playerType: "system", // ✨ 高清内核绑定
+                            customHeaders: PLAY_HEADERS
                         }
                     ]
                 };
