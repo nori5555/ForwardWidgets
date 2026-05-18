@@ -1,7 +1,7 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
-    title: "Hanime1",
-    description: "尝试修复",
+    title: "Hanime1修复",
+    description: "获取 Hanime1 动画 (已开启 WebView 绕过拦截)",
     author: "skywazzle",
     site: "https://hanime1.me",
     version: "2.6.0", // 版本升级
@@ -11,7 +11,7 @@ var WidgetMetadata = {
         {
             title: "搜索影片",
             description: "搜索 Hanime1 影片内容",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复：开启 WebView 渲染以绕过 Cloudflare 盾
             functionName: "searchVideos",
             cacheDuration: 1800,
             params: [
@@ -44,7 +44,7 @@ var WidgetMetadata = {
         {
             title: "本日热门",
             description: "本日热门影片",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadDailyHot",
             cacheDuration: 1800,
             params: [
@@ -54,7 +54,7 @@ var WidgetMetadata = {
         {
             title: "本周热门",
             description: "本周热门影片",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadWeeklyHot",
             cacheDuration: 1800,
             params: [
@@ -64,7 +64,7 @@ var WidgetMetadata = {
         {
             title: "本月热门",
             description: "本月热门影片",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadMonthlyHot",
             cacheDuration: 1800,
             params: [
@@ -74,7 +74,7 @@ var WidgetMetadata = {
         {
             title: "最新上市",
             description: "最新上市影片",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadNewRelease",
             cacheDuration: 1800,
             params: [
@@ -84,7 +84,7 @@ var WidgetMetadata = {
         {
             title: "中文字幕",
             description: "中文字幕影片",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadChineseSubtitle",
             cacheDuration: 1800,
             params: [
@@ -124,7 +124,7 @@ var WidgetMetadata = {
         {
             title: "影片分类",
             description: "浏览不同分类的影片",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadByGenre",
             cacheDuration: 1800,
             params: [
@@ -164,16 +164,16 @@ var WidgetMetadata = {
         {
             title: "新番预告",
             description: "查看即将上映的新番",
-            requiresWebView: false,
+            requiresWebView: true, // 🟢 修复
             functionName: "loadPreviews",
             cacheDuration: 3600,
             params: []
         }
     ],
-    // 这里是新增的全局搜索配置
     search: {
         title: 'Hanime1',
-        functionName: 'searchVideos', // 复用已有的模块函数
+        functionName: 'searchVideos', 
+        requiresWebView: true, // 🟢 修复：全局搜索也挂上 WebView
         params: [
             {
                 name: 'keyword',
@@ -193,11 +193,12 @@ var WidgetMetadata = {
 };
 
 const BASE_URL = "https://hanime1.me";
-const REQUEST_TIMEOUT = 10000; // 10秒超时
+const REQUEST_TIMEOUT = 15000; // 稍微延长超时时间给 WebView 缓冲
 
 function getCommonHeaders() {
     return {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        // 🟢 修复：更新为较新的 Chrome User-Agent 伪装
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Referer": BASE_URL,
         "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
     };
