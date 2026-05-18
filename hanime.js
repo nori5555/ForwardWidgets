@@ -1,17 +1,17 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
     title: "Hanime1修复",
-    description: "获取 Hanime1 动画 (已开启 WebView 绕过拦截)",
+    description: "获取 Hanime1 动画，折扣码haze",
     author: "skywazzle",
     site: "https://hanime1.me",
-    version: "2.6.0", // 版本升级
+    version: "2.6.1", 
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
         {
             title: "搜索影片",
             description: "搜索 Hanime1 影片内容",
-            requiresWebView: true, // 🟢 修复：开启 WebView 渲染以绕过 Cloudflare 盾
+            requiresWebView: false, 
             functionName: "searchVideos",
             cacheDuration: 1800,
             params: [
@@ -44,7 +44,7 @@ var WidgetMetadata = {
         {
             title: "本日热门",
             description: "本日热门影片",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadDailyHot",
             cacheDuration: 1800,
             params: [
@@ -54,7 +54,7 @@ var WidgetMetadata = {
         {
             title: "本周热门",
             description: "本周热门影片",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadWeeklyHot",
             cacheDuration: 1800,
             params: [
@@ -64,7 +64,7 @@ var WidgetMetadata = {
         {
             title: "本月热门",
             description: "本月热门影片",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadMonthlyHot",
             cacheDuration: 1800,
             params: [
@@ -74,7 +74,7 @@ var WidgetMetadata = {
         {
             title: "最新上市",
             description: "最新上市影片",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadNewRelease",
             cacheDuration: 1800,
             params: [
@@ -84,7 +84,7 @@ var WidgetMetadata = {
         {
             title: "中文字幕",
             description: "中文字幕影片",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadChineseSubtitle",
             cacheDuration: 1800,
             params: [
@@ -124,7 +124,7 @@ var WidgetMetadata = {
         {
             title: "影片分类",
             description: "浏览不同分类的影片",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadByGenre",
             cacheDuration: 1800,
             params: [
@@ -164,7 +164,7 @@ var WidgetMetadata = {
         {
             title: "新番预告",
             description: "查看即将上映的新番",
-            requiresWebView: true, // 🟢 修复
+            requiresWebView: false,
             functionName: "loadPreviews",
             cacheDuration: 3600,
             params: []
@@ -173,7 +173,6 @@ var WidgetMetadata = {
     search: {
         title: 'Hanime1',
         functionName: 'searchVideos', 
-        requiresWebView: true, // 🟢 修复：全局搜索也挂上 WebView
         params: [
             {
                 name: 'keyword',
@@ -193,11 +192,10 @@ var WidgetMetadata = {
 };
 
 const BASE_URL = "https://hanime1.me";
-const REQUEST_TIMEOUT = 15000; // 稍微延长超时时间给 WebView 缓冲
+const REQUEST_TIMEOUT = 10000; 
 
 function getCommonHeaders() {
     return {
-        // 🟢 修复：更新为较新的 Chrome User-Agent 伪装
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Referer": BASE_URL,
         "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
@@ -396,7 +394,6 @@ async function loadByGenre(params) {
     if (queryParts.length > 0) {
         url += '?' + queryParts.join('&');
     }
-    // 若无参数，直接访问 /search（显示全部）
 
     return fetchAndParse(url);
 }
@@ -417,19 +414,16 @@ function parsePreviewsHtml(html) {
         // 尝试从 alt 或父容器获取标题
         let title = $img.attr('alt') || "";
         if (!title) {
-            // 找同级的 h5.caption 或附近的文本
             const $caption = $img.closest('div').find('h5.caption');
             if ($caption.length) {
                 title = $caption.text().trim();
-                // 取第一行
                 title = title.split('\n')[0];
             }
         }
         if (!title) title = "新番预告";
         if (title.length > 40) title = title.substring(0, 40) + "...";
 
-        // 预览页面本身没有播放地址，链接到预览页面
-        const link = window.location.href; // 当前预览页 URL
+        const link = window.location.href;
 
         items.push({
             id: link,
@@ -502,10 +496,10 @@ async function loadDetail(link) {
         const desc = $('meta[property="og:description"]').attr('content') || "";
         const cover = $('meta[property="og:image"]').attr('content') || "";
 
-        // 解析推荐视频（从详情页底部）
+        // 解析推荐视频
         const childItems = [];
         $('.home-rows-videos-div a[href*="/watch?v="]').each((i, el) => {
-            if (i >= 10) return false; // 限制推荐数量
+            if (i >= 10) return false;
 
             const $a = $(el);
             let recLink = $a.attr('href');
@@ -548,7 +542,6 @@ async function loadDetail(link) {
 
     } catch (error) {
         console.error("Detail load error:", error);
-        // 用户友好提示
         let errorMsg = "无法加载视频，请重试。";
         if (error.message === "video_url_not_found") {
             errorMsg = "未找到视频地址，可能需登录或该视频已失效。";
@@ -556,7 +549,7 @@ async function loadDetail(link) {
         return {
             id: link,
             type: "detail",
-            videoUrl: link, // 让 App 尝试打开网页
+            videoUrl: link,
             title: "加载失败",
             description: errorMsg,
             posterPath: "",
