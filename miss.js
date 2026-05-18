@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "大一统标准详情页版 (完美对齐VOD规范)",
-    version: "3.6.0",
+    description: "终极历史记录修复版 (完美解决收藏与继续观看失效)",
+    version: "3.7.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -66,8 +66,6 @@ var WidgetMetadata = {
 };
 
 const BASE_URL = "https://missav.ai";
-
-// 🔴 关键修复1：100% 恢复您原版强大的请求头，防止 Cloudflare 拦截和抓取失败
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -82,7 +80,7 @@ const PLAY_HEADERS = {
     "Origin": "https://missav.ai"
 };
 
-// 解析列表（完全对齐 VOD.js 的纯净格式）
+// 解析列表
 function parseVideoList(html) {
     if (!html || html.includes("Just a moment") || html.includes("Cloudflare")) {
         return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍后重试" }];
@@ -97,7 +95,6 @@ function parseVideoList(html) {
         let href = $link.attr("href");
         
         if (href) {
-            // 确保是绝对路径
             if (href.startsWith("/")) href = BASE_URL + href;
 
             const title = $link.text().trim();
@@ -109,10 +106,9 @@ function parseVideoList(html) {
 
             results.push({
                 id: href, 
-                // 🔴 关键修复2：严格参照 VOD.js 规范，使用 url 和 movie
                 type: "url", 
                 mediaType: "movie", 
-                videoUrl: null, // VOD 规范：列表必须声明 videoUrl 为 null
+                videoUrl: null, // 强制每次点击都重新获取最新播放链接
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -161,15 +157,33 @@ async function globalSearch(params = {}) {
 
 // 详情与播放解析
 async function loadDetail(item) {
-    let targetUrl = typeof item === 'object' ? (item.id || item.link) : item;
-    if (!targetUrl || typeof targetUrl !== 'string') return [];
+    let targetId = typeof item === 'object' ? (item.id || item.link) : item;
+    if (!targetId || typeof targetId !== 'string') return [];
+
+    // 🔴 终极漏洞修复1：ID洗白。从历史记录/收藏中恢复的 ID 会带有 "_ep1" 后缀，导致 404
+    let fetchUrl = targetId;
+    if (fetchUrl.includes("_ep")) {
+        fetchUrl = fetchUrl.split("_ep")[0]; // 剔除选集后缀，还原真实的视频网页链接
+    }
 
     try {
-        const res = await Widget.http.get(targetUrl, { headers: HEADERS });
+        const res = await Widget.http.get(fetchUrl, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
+        
+        // 🔴 终极漏洞修复2：提取封面兜底。因为从历史记录恢复的 item 会丢失海报图片
+        let cover = $('meta[property="og:image"]').attr('content') || "";
+        if (!cover) {
+            const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
+            if (videoIdMatch) {
+                const videoId = videoIdMatch[1].replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
+                cover = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg`;
+            }
+        }
+        let finalCover = (typeof item === 'object' && (item.posterPath || item.coverUrl)) ? (item.posterPath || item.coverUrl) : cover;
+
         let videoUrl = "";
         
         $('script').each((i, el) => {
@@ -190,22 +204,21 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
-            // 🔴 关键修复3：100% 对齐 VOD.js 详情页对象结构，且带有强力的防盗链 Header
             return {
-                id: targetUrl, 
-                videoUrl: videoUrl, // 根级暴露
+                id: fetchUrl, // 返回洗白后的纯净 ID，保证下次存入历史记录的是原生影片链接
+                videoUrl: videoUrl, // 每次重新解析并抓取不过期的播放链接
                 type: "url", 
                 mediaType: "movie", 
                 title: title || "未知标题",
-                posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-                backdropPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-                link: targetUrl,
+                posterPath: finalCover,
+                backdropPath: finalCover,
+                link: fetchUrl,
                 customHeaders: PLAY_HEADERS,
                 childItems: [
                     {
-                        id: targetUrl + "_ep1", 
+                        id: fetchUrl + "_ep1", 
                         type: "url", 
-                        mediaType: "episode", // 选集专属
+                        mediaType: "episode", 
                         title: "▶ 点击播放正片",
                         videoUrl: videoUrl,
                         customHeaders: PLAY_HEADERS
@@ -213,15 +226,14 @@ async function loadDetail(item) {
                 ]
             };
         } else {
-            // 如果没抓到视频，提供保底骨架屏避免空白崩溃
             return { 
-                id: targetUrl, type: "url", mediaType: "movie", 
-                title: "视频解析失败，请下拉刷新", childItems: [] 
+                id: fetchUrl, type: "url", mediaType: "movie", 
+                title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
             };
         }
     } catch (e) {
         return { 
-            id: targetUrl, type: "url", mediaType: "movie", 
+            id: fetchUrl, type: "url", mediaType: "movie", 
             title: "网络加载错误，请下拉刷新", childItems: [] 
         };
     }
