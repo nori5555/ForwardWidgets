@@ -1,10 +1,10 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
-    title: "Hanime1修复版",
-    description: "全局搜索+1080P优先+历史防掉链",
-    author: "skywazzle + AI",
-    site: "[https://hanime1.me](https://hanime1.me)",
-    version: "2.5.0",
+    title: "Hanime1",
+    description: "尝试修复",
+    author: "skywazzle",
+    site: "https://hanime1.me",
+    version: "2.6.0", // 版本升级
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
@@ -170,18 +170,30 @@ var WidgetMetadata = {
             params: []
         }
     ],
+    // 这里是新增的全局搜索配置
     search: {
-        title: "Hanime1 搜索",
-        functionName: "globalSearch",
+        title: 'Hanime1',
+        functionName: 'searchVideos', // 复用已有的模块函数
         params: [
-            { name: "keyword", title: "搜索关键词", type: "input", value: "" },
-            { name: "page", title: "页码", type: "page", value: "1" }
+            {
+                name: 'keyword',
+                title: "关键词",
+                type: 'input',
+                description: "搜索的关键词",
+                value: ''
+            },
+            {
+                name: 'page',
+                title: "页码",
+                type: 'page',
+                value: '1'
+            }
         ]
     }
 };
 
-const BASE_URL = "[https://hanime1.me](https://hanime1.me)";
-const REQUEST_TIMEOUT = 10000; 
+const BASE_URL = "https://hanime1.me";
+const REQUEST_TIMEOUT = 10000; // 10秒超时
 
 function getCommonHeaders() {
     return {
@@ -191,6 +203,9 @@ function getCommonHeaders() {
     };
 }
 
+/**
+ * 带超时的 HTTP GET 请求
+ */
 async function httpGetWithTimeout(url) {
     return Widget.http.get(url, {
         headers: getCommonHeaders(),
@@ -198,6 +213,9 @@ async function httpGetWithTimeout(url) {
     });
 }
 
+/**
+ * 标准化图片 URL
+ */
 function normalizeImageUrl(src) {
     if (!src) return "";
     if (src.startsWith("//")) return "https:" + src;
@@ -206,12 +224,16 @@ function normalizeImageUrl(src) {
     return src;
 }
 
+/**
+ * 解析列表页面（支持多种页面结构）
+ */
 async function fetchAndParse(url) {
     try {
         const response = await httpGetWithTimeout(url);
         const $ = Widget.html.load(response.data);
         const items = [];
 
+        // 精确选择所有视频链接的 <a> 标签
         $('a[href*="/watch?v="]').each((i, el) => {
             const $a = $(el);
             const href = $a.attr('href');
@@ -222,17 +244,21 @@ async function fetchAndParse(url) {
                 link = BASE_URL + (link.startsWith('/') ? '' : '/') + link;
             }
 
+            // 避免重复
             if (items.some(it => it.link === link)) return;
 
+            // 提取图片：优先取 data-src，再取 src，并过滤背景图
             let poster = "";
             const $img = $a.find('img').first();
             if ($img.length) {
                 poster = $img.attr('data-src') || $img.attr('src') || "";
+                // 如果图片是 background.jpg 则忽略
                 if (poster.includes('background.jpg')) {
                     poster = "";
                 }
             }
             if (!poster) {
+                // 尝试从卡片内其他位置找图片（例如 .card-mobile-image 等）
                 const $cardImg = $a.closest('.search-doujin-videos, .home-rows-videos-div').find('img').first();
                 if ($cardImg.length) {
                     poster = $cardImg.attr('data-src') || $cardImg.attr('src') || "";
@@ -241,12 +267,14 @@ async function fetchAndParse(url) {
             }
             poster = normalizeImageUrl(poster);
 
+            // 提取标题
             let title = $a.find('.card-mobile-title, .home-rows-videos-title, [class*="title"]').first().text().trim();
             if (!title) {
                 title = $img.attr('alt') || $a.attr('title') || "";
             }
-            if (!title) return; 
+            if (!title) return; // 无标题则跳过
 
+            // 时长和作者（可选）
             const duration = $a.find('.card-mobile-duration, .duration, [class*="time"]').first().text().trim();
             const author = $a.find('.card-mobile-user, .author, [class*="user"]').first().text().trim();
 
@@ -265,10 +293,14 @@ async function fetchAndParse(url) {
 
         return items;
     } catch (e) {
+        console.error(`Fetch error for ${url}:`, e);
         return [];
     }
 }
 
+/**
+ * 将内部枚举值转换为 Hanime1 实际使用的字符串
+ */
 function mapSortToApi(sortValue) {
     const map = {
         "new_release": "最新上市",
@@ -293,6 +325,8 @@ function mapGenreToApi(genreValue) {
     return map[genreValue] || "";
 }
 
+// --- 模块功能函数 ---
+
 async function searchVideos(params) {
     const page = params.page || 1;
     const keyword = params.keyword || "";
@@ -300,17 +334,6 @@ async function searchVideos(params) {
 
     let url = `${BASE_URL}/search?query=${encodeURIComponent(keyword)}`;
     if (sort) url += `&sort=${encodeURIComponent(sort)}`;
-    if (page > 1) url += `&page=${page}`;
-    return fetchAndParse(url);
-}
-
-// 供全局搜索调用的独立通道
-async function globalSearch(params) {
-    const page = params.page || 1;
-    const keyword = params.keyword || params.query || params.wd || "";
-    if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词开始搜索" }];
-    
-    let url = `${BASE_URL}/search?query=${encodeURIComponent(keyword)}`;
     if (page > 1) url += `&page=${page}`;
     return fetchAndParse(url);
 }
@@ -348,6 +371,7 @@ async function loadChineseSubtitle(params) {
     const sort = mapSortToApi(params.sort_by);
     const genre = mapGenreToApi(params.genre);
 
+    // 基础 URL，添加 tags[]=中文字幕
     let url = `${BASE_URL}/search?tags%5B%5D=${encodeURIComponent('中文字幕')}`;
 
     if (sort) url += `&sort=${encodeURIComponent(sort)}`;
@@ -371,30 +395,40 @@ async function loadByGenre(params) {
     if (queryParts.length > 0) {
         url += '?' + queryParts.join('&');
     }
+    // 若无参数，直接访问 /search（显示全部）
+
     return fetchAndParse(url);
 }
 
+/**
+ * 解析预览页 HTML
+ */
 function parsePreviewsHtml(html) {
     const $ = Widget.html.load(html);
     const items = [];
 
+    // 选择预览容器（移动端预览图区域）
     $('.hidden-sm.hidden-md.hidden-lg .preview-image-modal-trigger').each((i, el) => {
         const $img = $(el);
         const poster = $img.attr('src') || $img.attr('data-src');
         if (!poster) return;
 
+        // 尝试从 alt 或父容器获取标题
         let title = $img.attr('alt') || "";
         if (!title) {
+            // 找同级的 h5.caption 或附近的文本
             const $caption = $img.closest('div').find('h5.caption');
             if ($caption.length) {
                 title = $caption.text().trim();
+                // 取第一行
                 title = title.split('\n')[0];
             }
         }
         if (!title) title = "新番预告";
         if (title.length > 40) title = title.substring(0, 40) + "...";
 
-        const link = window.location.href; 
+        // 预览页面本身没有播放地址，链接到预览页面
+        const link = window.location.href; // 当前预览页 URL
 
         items.push({
             id: link,
@@ -423,26 +457,21 @@ async function loadPreviews(params) {
         const response = await httpGetWithTimeout(url);
         return parsePreviewsHtml(response.data);
     } catch (e) {
+        console.error("Preview load failed", e);
         return [];
     }
 }
 
-async function loadDetail(link) {
-    let fetchUrl = typeof link === 'object' ? (link.id || link.link) : link;
-    if (!fetchUrl || typeof fetchUrl !== 'string') return [];
-    
-    // 拦截历史记录中残留的脏数据后缀，还原真实播放地址防失效
-    if (fetchUrl.includes("_ep")) {
-        fetchUrl = fetchUrl.split("_ep")[0];
-    }
+// --- 详情加载 ---
 
+async function loadDetail(link) {
     try {
-        const response = await httpGetWithTimeout(fetchUrl);
+        const response = await httpGetWithTimeout(link);
         const $ = Widget.html.load(response.data);
 
-        // 高清优先级修复：原版优先SD，现改为优先1080P
+        // 尝试获取多个清晰度的视频 URL
         let videoUrl = "";
-        const qualityIds = ['#video-1080p', '#video-720p', '#video-hd', '#video-sd'];
+        const qualityIds = ['#video-sd', '#video-hd', '#video-720p', '#video-1080p'];
         for (const id of qualityIds) {
             const val = $(id).val();
             if (val) {
@@ -451,11 +480,13 @@ async function loadDetail(link) {
             }
         }
 
+        // 如果 input 中没有，尝试正则匹配
         if (!videoUrl) {
             const match = response.data.match(/source\s*=\s*['"](https:\/\/[^'"]+)['"]/);
             if (match) videoUrl = match[1];
         }
 
+        // 尝试 video 标签
         if (!videoUrl) {
             videoUrl = $('video source').attr('src');
         }
@@ -470,9 +501,10 @@ async function loadDetail(link) {
         const desc = $('meta[property="og:description"]').attr('content') || "";
         const cover = $('meta[property="og:image"]').attr('content') || "";
 
+        // 解析推荐视频（从详情页底部）
         const childItems = [];
         $('.home-rows-videos-div a[href*="/watch?v="]').each((i, el) => {
-            if (i >= 10) return false; 
+            if (i >= 10) return false; // 限制推荐数量
 
             const $a = $(el);
             let recLink = $a.attr('href');
@@ -499,36 +531,36 @@ async function loadDetail(link) {
             });
         });
 
-        // 保持原版的 "detail" 类型和返回格式，只增加 playerType 和 customHeaders 规范
         return {
-            id: fetchUrl, // 使用洗白后的网址，保证下次再看绝不掉线
-            type: "detail", 
+            id: link,
+            type: "detail",
             videoUrl: videoUrl,
-            playerType: "system", // 调用系统高清播放器
             title: title,
             description: desc,
             posterPath: normalizeImageUrl(cover),
             backdropPath: normalizeImageUrl(cover),
             mediaType: "movie",
-            link: fetchUrl,
+            link: link,
             childItems: childItems,
-            customHeaders: getCommonHeaders()
+            headers: getCommonHeaders()
         };
 
     } catch (error) {
+        console.error("Detail load error:", error);
+        // 用户友好提示
         let errorMsg = "无法加载视频，请重试。";
         if (error.message === "video_url_not_found") {
             errorMsg = "未找到视频地址，可能需登录或该视频已失效。";
         }
         return {
-            id: fetchUrl,
+            id: link,
             type: "detail",
-            videoUrl: fetchUrl, 
+            videoUrl: link, // 让 App 尝试打开网页
             title: "加载失败",
             description: errorMsg,
             posterPath: "",
             mediaType: "movie",
-            link: fetchUrl
+            link: link
         };
     }
 }
