@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极超清修复版 (恢复系统播放内核，满血高清)",
-    version: "3.8.0",
+    description: "全局搜索完美版 (统一使用详情页播放，修复历史与相似作品)",
+    version: "3.9.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -106,7 +106,7 @@ function parseVideoList(html) {
 
             results.push({
                 id: href, 
-                type: "url", 
+                type: "url", // 统一进详情页
                 mediaType: "movie", 
                 videoUrl: null, 
                 title: title,
@@ -160,6 +160,7 @@ async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetId || typeof targetId !== 'string') return [];
 
+    // 剔除可能残留的旧历史记录后缀，保证能抓到真实页面
     let fetchUrl = targetId;
     if (fetchUrl.includes("_ep")) {
         fetchUrl = fetchUrl.split("_ep")[0]; 
@@ -172,6 +173,7 @@ async function loadDetail(item) {
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         
+        // 封面图兜底逻辑
         let cover = $('meta[property="og:image"]').attr('content') || "";
         if (!cover) {
             const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
@@ -202,8 +204,9 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
+            // 🔴 终极修复核心：抛弃 childItems！单集电影直接在根节点传 videoUrl 即可！
             return {
-                id: fetchUrl, 
+                id: targetId, // 永远返回 APP 请求的那个 ID，绝不引发状态丢失
                 videoUrl: videoUrl, 
                 type: "url", 
                 mediaType: "movie", 
@@ -211,30 +214,20 @@ async function loadDetail(item) {
                 posterPath: finalCover,
                 backdropPath: finalCover,
                 link: fetchUrl,
-                playerType: "system", // 🔴 修复1：在根节点召唤系统高清播放器
-                customHeaders: PLAY_HEADERS,
-                childItems: [
-                    {
-                        id: fetchUrl + "_ep1", 
-                        type: "url", 
-                        mediaType: "episode", 
-                        title: "▶ 点击播放高清正片",
-                        videoUrl: videoUrl,
-                        playerType: "system", // 🔴 修复2：在选集按钮召唤系统高清播放器
-                        customHeaders: PLAY_HEADERS
-                    }
-                ]
+                playerType: "system", // 唤醒最高清系统内核
+                customHeaders: PLAY_HEADERS
+                // 彻底删除 childItems，相似作品错位问题直接消失！
             };
         } else {
             return { 
-                id: fetchUrl, type: "url", mediaType: "movie", 
-                title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
+                id: targetId, type: "url", mediaType: "movie", 
+                title: "视频解析失败，请下拉刷新", posterPath: finalCover
             };
         }
     } catch (e) {
         return { 
-            id: fetchUrl, type: "url", mediaType: "movie", 
-            title: "网络加载错误，请下拉刷新", childItems: [] 
+            id: targetId, type: "url", mediaType: "movie", 
+            title: "网络加载错误，请下拉刷新"
         };
     }
 }
