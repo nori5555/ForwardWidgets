@@ -1,10 +1,10 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
-    title: "Hanime1修复版",
-    description: "全局搜索+1080P优先+历史防掉链 (完美去警告)",
-    author: "skywazzle + AI",
+    title: "Hanime1修复",
+    description: "全局搜索 + 1080P优先 + 解决退出报缺失数据",
+    author: "skywazzle",
     site: "https://hanime1.me",
-    version: "2.7.0",
+    version: "2.4.1",
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
@@ -170,6 +170,7 @@ var WidgetMetadata = {
             params: []
         }
     ],
+    // 🌟 全局搜索底层入口
     search: {
         title: "Hanime1 搜索",
         functionName: "globalSearch",
@@ -177,10 +178,6 @@ var WidgetMetadata = {
             { name: "keyword", title: "搜索关键词", type: "input", value: "" },
             { name: "page", title: "页码", type: "page", value: "1" }
         ]
-    },
-    detail: {
-        title: "视频详情",
-        functionName: "loadDetail"
     }
 };
 
@@ -264,7 +261,6 @@ async function fetchAndParse(url) {
                 durationText: duration,
                 description: author,
                 link: link
-                // 🔴 剔除画蛇添足的 videoUrl: null
             });
         });
 
@@ -309,12 +305,10 @@ async function searchVideos(params) {
     return fetchAndParse(url);
 }
 
-// 供全局搜索调用的独立通道
+// 🌟 全局搜索调用接口
 async function globalSearch(params) {
     const page = params.page || 1;
     const keyword = params.keyword || params.query || params.wd || "";
-    if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词开始搜索" }];
-    
     let url = `${BASE_URL}/search?query=${encodeURIComponent(keyword)}`;
     if (page > 1) url += `&page=${page}`;
     return fetchAndParse(url);
@@ -404,13 +398,12 @@ function parsePreviewsHtml(html) {
         items.push({
             id: link,
             type: "url",
-            mediaType: "movie",
             title: title,
             posterPath: normalizeImageUrl(poster),
             backdropPath: normalizeImageUrl(poster),
+            mediaType: "movie",
             description: "新番预告",
             link: link
-            // 🔴 剔除画蛇添足的 videoUrl: null
         });
     });
 
@@ -418,111 +411,4 @@ function parsePreviewsHtml(html) {
 }
 
 async function loadPreviews(params) {
-    const d = new Date();
-    const year = d.getFullYear();
-    let month = d.getMonth() + 1;
-    if (month < 10) month = '0' + month;
-
-    const url = `${BASE_URL}/previews/${year}${month}`;
-
-    try {
-        const response = await httpGetWithTimeout(url);
-        return parsePreviewsHtml(response.data);
-    } catch (e) {
-        return [];
-    }
-}
-
-async function loadDetail(link) {
-    let fetchUrl = typeof link === 'object' ? (link.id || link.link) : link;
-    if (!fetchUrl || typeof fetchUrl !== 'string') return [];
-    
-    // 拦截历史记录中残留的脏数据后缀
-    if (fetchUrl.includes("_ep")) {
-        fetchUrl = fetchUrl.split("_ep")[0];
-    }
-
-    try {
-        const response = await httpGetWithTimeout(fetchUrl);
-        const $ = Widget.html.load(response.data);
-
-        // 🌟 高清优先级修复：原版优先SD，现改为优先1080P
-        let videoUrl = "";
-        const qualityIds = ['#video-1080p', '#video-720p', '#video-hd', '#video-sd'];
-        for (const id of qualityIds) {
-            const val = $(id).val();
-            if (val) {
-                videoUrl = val;
-                break;
-            }
-        }
-
-        if (!videoUrl) {
-            const match = response.data.match(/source\s*=\s*['"](https:\/\/[^'"]+)['"]/);
-            if (match) videoUrl = match[1];
-        }
-
-        if (!videoUrl) {
-            videoUrl = $('video source').attr('src');
-        }
-
-        if (!videoUrl) {
-            throw new Error("未找到视频地址，可能需登录或该视频已失效");
-        }
-
-        videoUrl = videoUrl.replace(/&amp;/g, '&');
-
-        const title = $('meta[property="og:title"]').attr('content') || "标题未知";
-        const desc = $('meta[property="og:description"]').attr('content') || "";
-        const cover = $('meta[property="og:image"]').attr('content') || "";
-
-        const childItems = [];
-        $('.home-rows-videos-div a[href*="/watch?v="]').each((i, el) => {
-            if (i >= 10) return false; 
-
-            const $a = $(el);
-            let recLink = $a.attr('href');
-            if (!recLink) return;
-            if (!recLink.startsWith('http')) {
-                recLink = BASE_URL + (recLink.startsWith('/') ? '' : '/') + recLink;
-            }
-
-            const $img = $a.find('img').first();
-            let recPoster = $img.attr('data-src') || $img.attr('src') || "";
-            recPoster = normalizeImageUrl(recPoster);
-
-            let recTitle = $a.find('.home-rows-videos-title, [class*="title"]').first().text().trim();
-            if (!recTitle) recTitle = $img.attr('alt') || "相关视频";
-
-            childItems.push({
-                id: recLink,
-                type: "url",
-                mediaType: "movie",
-                title: recTitle,
-                posterPath: recPoster,
-                backdropPath: recPoster,
-                link: recLink
-                // 🔴 剔除画蛇添足的 videoUrl: null
-            });
-        });
-
-        // 🔴 恢复你原版完美兼容的 type: "detail" 格式，彻底消灭警告
-        return {
-            id: fetchUrl, 
-            type: "detail", 
-            videoUrl: videoUrl,
-            playerType: "system", // ✨ 注入原生高清播放器
-            title: title,
-            description: desc,
-            posterPath: normalizeImageUrl(cover),
-            backdropPath: normalizeImageUrl(cover),
-            mediaType: "movie",
-            link: fetchUrl,
-            childItems: childItems,
-            customHeaders: getCommonHeaders()
-        };
-
-    } catch (error) {
-        throw new Error("加载详情失败: " + error.message);
-    }
-}
+    const d = new Date
