@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "最终无瑕版：100%对齐VOD标准，修复UI错位与超清画质",
-    version: "4.2.0",
+    description: "修复历史记录与高清画质",
+    version: "4.3.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -106,9 +106,9 @@ function parseVideoList(html) {
 
             results.push({
                 id: href, 
-                type: "url", 
-                mediaType: "movie", 
-                videoUrl: null, 
+                type: "url", // 统一进详情页
+                mediaType: "movie", // 宣称这是一部独立电影
+                videoUrl: null, // VOD规范要求列表处视频链接置空
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -161,12 +161,11 @@ async function loadDetail(item) {
     if (!targetId || typeof targetId !== 'string') return [];
 
     let fetchUrl = targetId;
-    let isEpisodeClick = false;
 
-    // 历史记录与防过期链接的无敌拦截器
-    if (fetchUrl.endsWith("_ep1")) {
-        isEpisodeClick = true;
-        fetchUrl = fetchUrl.replace("_ep1", ""); 
+    // 🔴 终极修复：深度洗白被污染的历史记录 ID。
+    // 如果你之前的历史记录存了带有 _ep、_episode 的假后缀，统统砍掉，还原真实的网页地址去抓取。
+    if (fetchUrl.includes("_ep")) {
+        fetchUrl = fetchUrl.split("_ep")[0]; 
     }
 
     try {
@@ -176,6 +175,7 @@ async function loadDetail(item) {
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         
+        // 海报兜底
         let cover = $('meta[property="og:image"]').attr('content') || "";
         if (!cover) {
             const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
@@ -206,51 +206,34 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
-            if (isEpisodeClick) {
-                // 🔴 拦截器生效：从选集或【继续观看】进入时，强制返回原生高清数组！永不糊，永不过期！
-                return [{
-                    id: fetchUrl, // 把干净的 ID 存入历史记录
-                    type: "video", 
-                    title: title || "正在播放",
-                    videoUrl: videoUrl, // 每次重新抓取的新鲜链接
-                    playerType: "system", // ✨ 强制唤醒系统最高清内核！
-                    customHeaders: PLAY_HEADERS
-                }];
-            } else {
-                // 🔴 正常的详情页渲染 (100% 对齐 VOD.js 标准)
-                return {
-                    id: targetId,
-                    type: "url", 
-                    mediaType: "movie", 
-                    title: title || "未知标题",
-                    videoUrl: videoUrl, // ✨ 修复核心1：有了这个，蓝色的"暂无可用资源"瞬间消失！
-                    playerType: "system", 
-                    posterPath: finalCover,
-                    backdropPath: finalCover,
-                    link: fetchUrl,
-                    customHeaders: PLAY_HEADERS,
-                    childItems: [
-                        {
-                            id: fetchUrl + "_ep1", // 点击这里将触发上面的拦截器要高清链接
-                            type: "url", // ✨ 修复核心2：必须是 url！如果是 video 就会跑到"相似作品"！
-                            mediaType: "episode", 
-                            title: "▶ 点击播放超清正片",
-                            videoUrl: videoUrl,
-                            customHeaders: PLAY_HEADERS
-                        }
-                    ]
-                };
-            }
+            // 🔴 终极修复：大道至简！
+            // 1. 完全抛弃 childItems，相似作品错位问题直接斩草除根。
+            // 2. 将 videoUrl 放在最外层，APP 会自动生成唯一的播放按钮（带绿色勾勾那个）。
+            // 3. 在最外层绑定 playerType: "system"，瞬间召唤 1080P 超清内核！
+            return {
+                id: targetId, // 永远返回 APP 传入的原始 ID，保证历史记录绝不错乱掉线
+                type: "url", 
+                mediaType: "movie", 
+                title: title || "未知标题",
+                videoUrl: videoUrl, // 提供最新的不过期直链
+                playerType: "system", // ✨ 绑定系统高清内核
+                posterPath: finalCover,
+                backdropPath: finalCover,
+                link: fetchUrl,
+                customHeaders: PLAY_HEADERS
+                // 【注意：坚决不要 childItems】
+            };
         } else {
+            // 即使被拦截或者没抓到视频，也要返回带有 id 的空骨架，保证下拉刷新时不崩溃
             return { 
                 id: targetId, type: "url", mediaType: "movie", 
-                title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
+                title: "视频解析失败，请下拉刷新", posterPath: finalCover 
             };
         }
     } catch (e) {
         return { 
             id: targetId, type: "url", mediaType: "movie", 
-            title: "网络加载错误，请下拉刷新", childItems: [] 
+            title: "网络加载错误，请下拉刷新" 
         };
     }
 }
