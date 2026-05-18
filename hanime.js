@@ -1,10 +1,10 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
-    title: "Hanime1修复版",
-    description: "全局搜索+1080P优先+历史防掉链",
+    title: "Hanime1",
+    description: "全局搜索+1080P优先+历史防掉链+消灭警告",
     author: "skywazzle + AI",
-    site: "[https://hanime1.me](https://hanime1.me)",
-    version: "2.5.0",
+    site: "https://hanime1.me",
+    version: "2.6.1",
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
@@ -177,10 +177,14 @@ var WidgetMetadata = {
             { name: "keyword", title: "搜索关键词", type: "input", value: "" },
             { name: "page", title: "页码", type: "page", value: "1" }
         ]
+    },
+    detail: {
+        title: "视频详情",
+        functionName: "loadDetail"
     }
 };
 
-const BASE_URL = "[https://hanime1.me](https://hanime1.me)";
+const BASE_URL = "https://hanime1.me";
 const REQUEST_TIMEOUT = 10000; 
 
 function getCommonHeaders() {
@@ -253,10 +257,11 @@ async function fetchAndParse(url) {
             items.push({
                 id: link,
                 type: "url",
+                mediaType: "movie",
+                videoUrl: null, // 🔴 消灭警告核心1：必须显式声明列表没有播放链接
                 title: title,
                 posterPath: poster,
                 backdropPath: poster,
-                mediaType: "movie",
                 durationText: duration,
                 description: author,
                 link: link
@@ -399,10 +404,11 @@ function parsePreviewsHtml(html) {
         items.push({
             id: link,
             type: "url",
+            mediaType: "movie",
+            videoUrl: null, // 🔴 消灭警告
             title: title,
             posterPath: normalizeImageUrl(poster),
             backdropPath: normalizeImageUrl(poster),
-            mediaType: "movie",
             description: "新番预告",
             link: link
         });
@@ -431,7 +437,7 @@ async function loadDetail(link) {
     let fetchUrl = typeof link === 'object' ? (link.id || link.link) : link;
     if (!fetchUrl || typeof fetchUrl !== 'string') return [];
     
-    // 拦截历史记录中残留的脏数据后缀，还原真实播放地址防失效
+    // 拦截历史记录中残留的脏数据后缀
     if (fetchUrl.includes("_ep")) {
         fetchUrl = fetchUrl.split("_ep")[0];
     }
@@ -460,8 +466,9 @@ async function loadDetail(link) {
             videoUrl = $('video source').attr('src');
         }
 
+        // 🔴 消灭警告核心2：如果没抓到视频抛出异常，阻止 APP 存入坏数据
         if (!videoUrl) {
-            throw new Error("video_url_not_found");
+            throw new Error("未找到视频地址，可能需登录或该视频已失效");
         }
 
         videoUrl = videoUrl.replace(/&amp;/g, '&');
@@ -491,20 +498,20 @@ async function loadDetail(link) {
             childItems.push({
                 id: recLink,
                 type: "url",
+                mediaType: "movie",
+                videoUrl: null, // 🔴 消灭警告
                 title: recTitle,
                 posterPath: recPoster,
                 backdropPath: recPoster,
-                mediaType: "movie",
                 link: recLink
             });
         });
 
-        // 保持原版的 "detail" 类型和返回格式，只增加 playerType 和 customHeaders 规范
         return {
-            id: fetchUrl, // 使用洗白后的网址，保证下次再看绝不掉线
-            type: "detail", 
+            id: fetchUrl, 
+            type: "url", // 🔴 消灭警告核心3：将原版非标准的 detail 纠正为 url
             videoUrl: videoUrl,
-            playerType: "system", // 调用系统高清播放器
+            playerType: "system", 
             title: title,
             description: desc,
             posterPath: normalizeImageUrl(cover),
@@ -516,19 +523,6 @@ async function loadDetail(link) {
         };
 
     } catch (error) {
-        let errorMsg = "无法加载视频，请重试。";
-        if (error.message === "video_url_not_found") {
-            errorMsg = "未找到视频地址，可能需登录或该视频已失效。";
-        }
-        return {
-            id: fetchUrl,
-            type: "detail",
-            videoUrl: fetchUrl, 
-            title: "加载失败",
-            description: errorMsg,
-            posterPath: "",
-            mediaType: "movie",
-            link: fetchUrl
-        };
+        throw new Error("加载详情失败: " + error.message);
     }
 }
