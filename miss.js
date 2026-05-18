@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "全局搜索完美版 (统一使用详情页播放)",
-    version: "3.4.0",
+    description: "全局统一详情页版：修复刷新无资源与相似作品错位",
+    version: "3.5.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -61,9 +61,11 @@ const HEADERS = {
     "Referer": "https://missav.ai/"
 };
 
-// 解析列表（大一统版，摒弃双修逻辑，全量拥抱标准详情页）
+// 解析列表（大一统纯净版：不需要任何前后缀参数，全部用原生干净链接）
 function parseVideoList(html) {
-    if (!html || html.includes("Just a moment")) return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍后重试" }];
+    if (!html || html.includes("Just a moment") || html.includes("Cloudflare")) {
+        return [{ id: "err", type: "text", title: "访问被拦截", subTitle: "请稍后重试或检查网络" }];
+    }
 
     const $ = Widget.html.load(html);
     const results = [];
@@ -82,9 +84,10 @@ function parseVideoList(html) {
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
             results.push({
-                id: href, // 最纯净的原生网址，绝不会被 APP 拦截或篡改
-                type: "url", // 🔴 模块内和全局全部统一为 url，触发标准详情页
-                mediaType: "movie", // 🔴 告诉 APP 这是电影，防丢相似推荐区
+                id: href, // 最纯净的原生网址，绝不会丢状态
+                type: "url", // 统一进详情页
+                mediaType: "tv", // 统一标记为剧集（避免掉进底部的相似作品推荐中）
+                videoUrl: null, // VOD规范，列表必须声明为空
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -130,7 +133,7 @@ async function globalSearch(params = {}) {
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 详情与播放解析（标准合一版）
+// 详情与播放解析（标准详情页骨架）
 async function loadDetail(item) {
     let targetUrl = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetUrl || typeof targetUrl !== 'string') return [];
@@ -159,27 +162,46 @@ async function loadDetail(item) {
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
-        // 🔴 无论从哪里点进来，100% 走标准详情页渲染，保证 Forward 底层绝对不崩
-        return {
+        if (videoUrl) {
+            // 完美解析：返回标准结构
+            return {
+                id: targetUrl, // 纯净的 URL
+                type: "url",
+                mediaType: "tv", // 剧集模式，防止跑到相似作品
+                title: title,
+                videoUrl: videoUrl,
+                posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
+                customHeaders: HEADERS,
+                childItems: [
+                    {
+                        id: targetUrl + "_ep1",
+                        type: "url", // 选集必须是 url 格式
+                        title: "▶ 点击播放正片",
+                        videoUrl: videoUrl,
+                        mediaType: "episode",
+                        customHeaders: HEADERS
+                    }
+                ]
+            };
+        } else {
+            // 防刷盾骨架：没抓到链接也返回详情页框架，提供友好的文字提示，绝对不崩溃
+            return { 
+                id: targetUrl, 
+                type: "url", 
+                mediaType: "tv", 
+                title: "解析缓慢或遇人机验证，请下拉刷新重试", 
+                posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
+                childItems: [] 
+            };
+        }
+    } catch (e) {
+        // 网络崩溃骨架
+        return { 
             id: targetUrl, 
             type: "url", 
-            mediaType: "movie", 
-            title: title || "正在解析...",
-            videoUrl: videoUrl,
-            posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-            customHeaders: HEADERS,
-            childItems: videoUrl ? [
-                {
-                    id: targetUrl + "_ep1", 
-                    type: "url", 
-                    title: "▶ 点击播放正片",
-                    videoUrl: videoUrl,
-                    mediaType: "episode", 
-                    customHeaders: HEADERS
-                }
-            ] : []
+            mediaType: "tv", 
+            title: "网络错误，请下拉刷新重试", 
+            childItems: [] 
         };
-    } catch (e) {}
-    
-    return { id: targetUrl, type: "url", mediaType: "movie", title: "加载失败，请重试", childItems: [] };
+    }
 }
