@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "历史记录掉线、画质降级",
-    version: "4.4.0",
+    description: "系统原生高清，修复历史失效",
+    version: "4.5.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -107,8 +107,8 @@ function parseVideoList(html) {
             results.push({
                 id: href, 
                 type: "url", 
-                mediaType: "tv", // ✨ 黄金法则 1：列表页强行声明为 TV 剧集，根除相似作品 Bug
-                videoUrl: null, 
+                mediaType: "movie", 
+                videoUrl: null, // 强制进详情页加载
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -158,24 +158,18 @@ async function globalSearch(params = {}) {
 // 详情与播放解析
 async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
-    if (!targetId || typeof targetId !== 'string') return [];
+    if (!targetId || typeof targetId !== 'string') throw new Error("参数错误");
 
-    let fetchUrl = targetId;
-
-    // ✨ 黄金法则 2：全链路 ID 洗白。
-    // 无论 APP 传进来的是 Root ID 还是历史记录里带 _ep1 的选集 ID，统统洗白成原生网页链接。
-    if (fetchUrl.includes("_ep")) {
-        fetchUrl = fetchUrl.split("_ep")[0]; 
-    }
+    // 🔴 历史记录洗白：不管你之前存了什么乱七八糟的后缀，全给砍掉，还原纯净网址
+    let fetchUrl = targetId.split("_ep")[0].split("?")[0];
 
     try {
         const res = await Widget.http.get(fetchUrl, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
         
-        let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
+        let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim() || (typeof item === 'object' ? item.title : "未知标题");
         
-        // 封面兜底
         let cover = $('meta[property="og:image"]').attr('content') || "";
         if (!cover) {
             const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
@@ -205,40 +199,28 @@ async function loadDetail(item) {
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
-        if (videoUrl) {
-            // ✨ 黄金法则 3：永远返回稳如泰山的 TV 详情页结构！绝不返回单薄的数组！
-            return {
-                id: fetchUrl, // 使用洗白后的 ID，保证历史状态稳固如山
-                type: "url", 
-                mediaType: "tv", // 配合子集，彻底告别相似作品
-                title: title || "未知标题",
-                videoUrl: null, // 根节点绝不放链接，避免生成降画质的顶部播放按钮
-                posterPath: finalCover,
-                backdropPath: finalCover,
-                link: fetchUrl,
-                customHeaders: PLAY_HEADERS,
-                childItems: [
-                    {
-                        id: fetchUrl + "_ep1", 
-                        type: "url", // 必须是 url，否则又变相似作品
-                        mediaType: "episode", 
-                        title: "▶ 点击播放超清正片",
-                        videoUrl: videoUrl, // 新鲜热乎的链接放在这
-                        playerType: "system", // ✨ 黄金法则 4：绑定系统超清播放器！
-                        customHeaders: PLAY_HEADERS
-                    }
-                ]
-            };
-        } else {
-            return { 
-                id: fetchUrl, type: "url", mediaType: "tv", 
-                title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
-            };
+        // 🔴 修复防崩逻辑：如果没抓到视频，直接报错抛出！
+        // 这样 APP 就不会把你界面上的播放按钮抹除了，只会弹出提示让你重试！
+        if (!videoUrl) {
+            throw new Error("可能遇到人机验证，请下拉刷新重试");
         }
-    } catch (e) {
-        return { 
-            id: fetchUrl, type: "url", mediaType: "tv", 
-            title: "网络加载错误，请下拉刷新", childItems: [] 
+
+        // 🔴 大道至简：连根拔除 childItems，绝不给“相似作品”留一丝机会！
+        return {
+            id: fetchUrl, // 使用洗白后的 ID，保证下次存进历史记录绝对干净
+            type: "url", 
+            mediaType: "movie", 
+            title: title,
+            videoUrl: videoUrl, // 提供最新的直链
+            playerType: "system", // ✨ 绑定你原版的高清内核！
+            posterPath: finalCover,
+            backdropPath: finalCover,
+            link: fetchUrl,
+            customHeaders: PLAY_HEADERS
+            // 坚决不写 childItems！
         };
+        
+    } catch (e) {
+        throw new Error("加载失败，请下拉刷新: " + e.message); // 遇到网络错误抛出异常，保全界面按钮
     }
 }
