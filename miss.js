@@ -3,7 +3,7 @@ var WidgetMetadata = {
     title: "MissAV",
     author: "Forward_User",
     description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
-    version: "3.3.3",
+    version: "3.3.4",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -68,7 +68,7 @@ function parseVideoList(html, isGlobal = false) {
     const $ = Widget.html.load(html);
     const results = [];
     
-    // 【核心修改1】：防过滤机制，放弃容易被吞的后缀，改用强前缀标记！
+    // 依然保留隐形前缀，用于区分秒播还是详情页
     const prefix = isGlobal ? "GLOBAL_MARK::" : "";
 
     $("div.group").each((i, el) => {
@@ -85,12 +85,14 @@ function parseVideoList(html, isGlobal = false) {
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
             results.push({
-                id: prefix + href, // 加上前缀：GLOBAL_MARK::https://missav...
-                type: isGlobal ? "video" : "link", 
+                id: prefix + href, 
+                // 🔴 核心修复 1：严格对齐 VOD.js 的规范。全局搜索必须用 "url"，且加上 mediaType: "movie"
+                type: isGlobal ? "url" : "link", 
+                mediaType: isGlobal ? "movie" : undefined, 
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
-                link: href, // 保持真实的 link 干净
+                link: prefix + href, // 把 link 也加上前缀防丢
                 description: `时长: ${duration} | 番号: ${videoId}`,
                 customHeaders: HEADERS
             });
@@ -140,7 +142,7 @@ async function loadDetail(item) {
     let isGlobal = false;
     let requestUrl = targetId;
 
-    // 【核心修改2】：识别前缀，剥离出真实的请求地址
+    // 识别前缀，剥离出真实的请求地址
     if (requestUrl.startsWith("GLOBAL_MARK::")) {
         isGlobal = true;
         requestUrl = requestUrl.replace("GLOBAL_MARK::", ""); 
@@ -172,10 +174,11 @@ async function loadDetail(item) {
 
         if (videoUrl) {
             if (isGlobal) {
+                // 🔴 核心修复 2：详情页格式完全对齐 VOD.js！
                 return {
-                    // 【核心修改3】：把前缀加回去还给 APP！就算狂按刷新，APP也不会弄丢这个ID
-                    id: "GLOBAL_MARK::" + requestUrl, 
-                    type: "video",
+                    id: targetId, // 直接使用传进来的原始 ID，绝对不掉状态
+                    type: "url",  // 必须是 url，和列表里的保持一致
+                    mediaType: "movie", // 必须是 movie，APP 才认识这是一个详情页
                     title: title,
                     videoUrl: videoUrl,
                     posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
@@ -183,10 +186,10 @@ async function loadDetail(item) {
                     childItems: [
                         {
                             id: requestUrl + "_ep1",
-                            type: "url", // 【核心修改4】：改成 url，彻底解决播放按钮掉到底部相似推荐的问题！
+                            type: "url", // 选集也必须是 url
                             title: "▶ 点击播放正片",
                             videoUrl: videoUrl,
-                            mediaType: "episode",
+                            mediaType: "episode", // 声明这是选集
                             customHeaders: HEADERS
                         }
                     ]
