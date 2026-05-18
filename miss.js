@@ -3,7 +3,7 @@ var WidgetMetadata = {
     title: "MissAV",
     author: "Forward_User",
     description: "全局搜索完美版 (统一使用详情页播放)",
-    version: "3.3.0",
+    version: "3.4.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
