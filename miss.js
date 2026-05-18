@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "全局搜索完美版 (统一使用详情页播放，修复历史与相似作品)",
-    version: "3.9.0",
+    description: "终极完美版：修复高清画质、历史记录防失效、选集错位问题",
+    version: "4.0.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -106,8 +106,9 @@ function parseVideoList(html) {
 
             results.push({
                 id: href, 
-                type: "url", // 统一进详情页
-                mediaType: "movie", 
+                type: "url", 
+                // 🔴 修复1：强制声明为 tv（剧集），这样后续的 childItems 才会乖乖进入“选集”列表，绝不乱跑！
+                mediaType: "tv", 
                 videoUrl: null, 
                 title: title,
                 coverUrl: coverUrl, 
@@ -155,15 +156,18 @@ async function globalSearch(params = {}) {
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 详情与播放解析
+// 详情与播放解析（终极路由分发）
 async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetId || typeof targetId !== 'string') return [];
 
-    // 剔除可能残留的旧历史记录后缀，保证能抓到真实页面
     let fetchUrl = targetId;
-    if (fetchUrl.includes("_ep")) {
-        fetchUrl = fetchUrl.split("_ep")[0]; 
+    let isEpisodeClick = false;
+
+    // 🔴 修复2：拦截历史记录点击。如果 ID 包含 _ep1，说明用户是从【继续观看】点进来的，或者是点击了选集按钮！
+    if (fetchUrl.includes("_ep1")) {
+        isEpisodeClick = true;
+        fetchUrl = fetchUrl.replace("_ep1", ""); // 洗白 ID，还原出真实的视频网页链接去重新抓包
     }
 
     try {
@@ -173,7 +177,6 @@ async function loadDetail(item) {
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         
-        // 封面图兜底逻辑
         let cover = $('meta[property="og:image"]').attr('content') || "";
         if (!cover) {
             const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
@@ -204,30 +207,48 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
-            // 🔴 终极修复核心：抛弃 childItems！单集电影直接在根节点传 videoUrl 即可！
-            return {
-                id: targetId, // 永远返回 APP 请求的那个 ID，绝不引发状态丢失
-                videoUrl: videoUrl, 
-                type: "url", 
-                mediaType: "movie", 
-                title: title || "未知标题",
-                posterPath: finalCover,
-                backdropPath: finalCover,
-                link: fetchUrl,
-                playerType: "system", // 唤醒最高清系统内核
-                customHeaders: PLAY_HEADERS
-                // 彻底删除 childItems，相似作品错位问题直接消失！
-            };
+            if (isEpisodeClick) {
+                // 🔴 修复3：点击选集或【继续观看】时，返回带 playerType 的数组进行瞬间高清播放！
+                return [{
+                    id: targetId, 
+                    type: "video", 
+                    title: title,
+                    videoUrl: videoUrl, // 这是刚刚抓取到的新鲜、不过期链接
+                    playerType: "system", // ✨ 唤醒系统原生超清播放器！
+                    customHeaders: PLAY_HEADERS
+                }];
+            } else {
+                // 正常点击列表时，渲染稳如泰山的详情页骨架
+                return {
+                    id: targetId,
+                    type: "url", 
+                    mediaType: "tv", // 配合前面的 tv，彻底根除“相似作品”错位
+                    title: title || "未知标题",
+                    posterPath: finalCover,
+                    backdropPath: finalCover,
+                    link: fetchUrl,
+                    childItems: [
+                        {
+                            id: fetchUrl + "_ep1", // 点击这里会触发上面的 isEpisodeClick 拦截
+                            type: "url", // 必须是 url，让它把任务交给上面的拦截器去要高清链接
+                            mediaType: "episode", 
+                            title: "▶ 点击播放高清正片",
+                            posterPath: finalCover,
+                            customHeaders: HEADERS
+                        }
+                    ]
+                };
+            }
         } else {
             return { 
-                id: targetId, type: "url", mediaType: "movie", 
-                title: "视频解析失败，请下拉刷新", posterPath: finalCover
+                id: targetId, type: "url", mediaType: "tv", 
+                title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
             };
         }
     } catch (e) {
         return { 
-            id: targetId, type: "url", mediaType: "movie", 
-            title: "网络加载错误，请下拉刷新"
+            id: targetId, type: "url", mediaType: "tv", 
+            title: "网络加载错误，请下拉刷新", childItems: [] 
         };
     }
 }
