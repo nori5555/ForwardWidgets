@@ -1,7 +1,7 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
-    title: "Hanime1完美版",
-    description: "全局搜索+优先1080P+历史防掉链",
+    title: "Hanime1",
+    description: "全局搜索+优先1080P",
     author: "skywazzle + AI",
     site: "https://hanime1.me",
     version: "2.5.0", 
