@@ -3,7 +3,7 @@ var WidgetMetadata = {
     title: "MissAV",
     author: "Forward_User",
     description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
-    version: "3.3.1",
+    version: "3.3.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -67,7 +67,9 @@ function parseVideoList(html, isGlobal = false) {
 
     const $ = Widget.html.load(html);
     const results = [];
-    const suffix = isGlobal ? "#global_search" : "";
+    
+    // 【核心修改1】：防过滤机制，放弃容易被吞的后缀，改用强前缀标记！
+    const prefix = isGlobal ? "GLOBAL_MARK::" : "";
 
     $("div.group").each((i, el) => {
         const $el = $(el);
@@ -83,14 +85,12 @@ function parseVideoList(html, isGlobal = false) {
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
             results.push({
-                id: href + suffix,
-                // 【核心优化1】：模块内依然用 "link" 触发快播；全局搜索强制用 "video" 触发详情页路由
+                id: prefix + href, // 加上前缀：GLOBAL_MARK::https://missav...
                 type: isGlobal ? "video" : "link", 
                 title: title,
                 coverUrl: coverUrl, 
-                // 【核心优化2】：补充 posterPath，保证全局搜索界面能刷出封面图
                 posterPath: coverUrl,
-                link: href + suffix,
+                link: href, // 保持真实的 link 干净
                 description: `时长: ${duration} | 番号: ${videoId}`,
                 customHeaders: HEADERS
             });
@@ -99,7 +99,7 @@ function parseVideoList(html, isGlobal = false) {
     return results.length > 0 ? results : [{ id: "empty", type: "text", title: "未找到内容" }];
 }
 
-// 模块浏览（原汁原味）
+// 模块浏览
 async function loadList(params = {}) {
     const { page = 1, category = "dm588/cn/release" } = params;
     let url = `${BASE_URL}/${category}`;
@@ -110,7 +110,7 @@ async function loadList(params = {}) {
     } catch (e) { return [{ id: "err", type: "text", title: "加载失败" }]; }
 }
 
-// 模块搜索（原汁原味）
+// 模块搜索
 async function searchList(params = {}) {
     const keyword = (params.keyword || params.query || "").trim();
     if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词" }];
@@ -121,31 +121,33 @@ async function searchList(params = {}) {
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 全局搜索（专属通道，打上标记）
+// 全局搜索
 async function globalSearch(params = {}) {
     const keyword = (params.keyword || params.query || "").trim();
     if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词" }];
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}` + (params.page > 1 ? `?page=${params.page}` : "");
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, true); // true 代表是全局搜索
+        return parseVideoList(res.data, true); 
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
 // 详情与播放解析
 async function loadDetail(item) {
-    let targetUrl = typeof item === 'object' ? (item.id || item.link) : item;
-    if (!targetUrl || typeof targetUrl !== 'string') return [];
+    let targetId = typeof item === 'object' ? (item.id || item.link) : item;
+    if (!targetId || typeof targetId !== 'string') return [];
 
-    // 识别隐形标记：决定是走“原版秒播”还是“详情页”
     let isGlobal = false;
-    if (targetUrl.includes("#global_search")) {
+    let requestUrl = targetId;
+
+    // 【核心修改2】：识别前缀，剥离出真实的请求地址
+    if (requestUrl.startsWith("GLOBAL_MARK::")) {
         isGlobal = true;
-        targetUrl = targetUrl.replace("#global_search", ""); // 剥离标记，还原真实网址
+        requestUrl = requestUrl.replace("GLOBAL_MARK::", ""); 
     }
 
     try {
-        const res = await Widget.http.get(targetUrl, { headers: HEADERS });
+        const res = await Widget.http.get(requestUrl, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
         
@@ -170,19 +172,18 @@ async function loadDetail(item) {
 
         if (videoUrl) {
             if (isGlobal) {
-                // 【核心优化3】：全局搜索专属的返回格式，完全兼容 Forward APP 的详情页规范（抛弃 episodes，改用 childItems）
                 return {
-                    // 👇 完美修复：把 #global_search 标记保留下来还给APP，刷新再也不会迷路了！
-                    id: targetUrl + "#global_search", 
+                    // 【核心修改3】：把前缀加回去还给 APP！就算狂按刷新，APP也不会弄丢这个ID
+                    id: "GLOBAL_MARK::" + requestUrl, 
                     type: "video",
                     title: title,
-                    videoUrl: videoUrl, // 提供根级直链
+                    videoUrl: videoUrl,
                     posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
                     customHeaders: HEADERS,
                     childItems: [
                         {
-                            id: targetUrl + "_ep1",
-                            type: "video",
+                            id: requestUrl + "_ep1",
+                            type: "url", // 【核心修改4】：改成 url，彻底解决播放按钮掉到底部相似推荐的问题！
                             title: "▶ 点击播放正片",
                             videoUrl: videoUrl,
                             mediaType: "episode",
@@ -191,9 +192,8 @@ async function loadDetail(item) {
                     ]
                 };
             } else {
-                // 【核心保持】：模块内点进来的，100% 保持你原来的格式，实现“瞬间秒播”
                 return [{
-                    id: targetUrl,
+                    id: requestUrl,
                     type: "video",
                     title: title,
                     videoUrl: videoUrl,
