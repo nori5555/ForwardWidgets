@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "全局统一详情页版：修复刷新无资源与相似作品错位",
-    version: "3.5.0",
+    description: "大一统标准详情页版 (完美对齐VOD规范)",
+    version: "3.6.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -26,6 +26,18 @@ var WidgetMetadata = {
                         { title: "🇯🇵 东京热", value: "dm29/cn/tokyohot" },
                         { title: "🇨🇳 中文字幕", value: "dm265/cn/chinese-subtitle" }
                     ] 
+                },
+                {
+                    name: "sort",
+                    title: "排序",
+                    type: "enumeration",
+                    value: "released_at",
+                    enumOptions: [
+                        { title: "发布日期", value: "released_at" },
+                        { title: "今日浏览", value: "today_views" },
+                        { title: "总浏览量", value: "views" },
+                        { title: "收藏数", value: "saved" }
+                    ]
                 }
             ]
         },
@@ -54,17 +66,26 @@ var WidgetMetadata = {
 };
 
 const BASE_URL = "https://missav.ai";
+
+// 🔴 关键修复1：100% 恢复您原版强大的请求头，防止 Cloudflare 拦截和抓取失败
 const HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9",
-    "Referer": "https://missav.ai/"
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Referer": "https://missav.ai/",
+    "Connection": "keep-alive"
 };
 
-// 解析列表（大一统纯净版：不需要任何前后缀参数，全部用原生干净链接）
+const PLAY_HEADERS = {
+    "Referer": "https://missav.ai/",
+    "User-Agent": HEADERS["User-Agent"],
+    "Origin": "https://missav.ai"
+};
+
+// 解析列表（完全对齐 VOD.js 的纯净格式）
 function parseVideoList(html) {
     if (!html || html.includes("Just a moment") || html.includes("Cloudflare")) {
-        return [{ id: "err", type: "text", title: "访问被拦截", subTitle: "请稍后重试或检查网络" }];
+        return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍后重试" }];
     }
 
     const $ = Widget.html.load(html);
@@ -73,9 +94,12 @@ function parseVideoList(html) {
     $("div.group").each((i, el) => {
         const $el = $(el);
         const $link = $el.find("a.text-secondary");
-        const href = $link.attr("href");
+        let href = $link.attr("href");
         
         if (href) {
+            // 确保是绝对路径
+            if (href.startsWith("/")) href = BASE_URL + href;
+
             const title = $link.text().trim();
             const $img = $el.find("img");
             const imgSrc = $img.attr("data-src") || $img.attr("src");
@@ -84,13 +108,15 @@ function parseVideoList(html) {
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
             results.push({
-                id: href, // 最纯净的原生网址，绝不会丢状态
-                type: "url", // 统一进详情页
-                mediaType: "tv", // 统一标记为剧集（避免掉进底部的相似作品推荐中）
-                videoUrl: null, // VOD规范，列表必须声明为空
+                id: href, 
+                // 🔴 关键修复2：严格参照 VOD.js 规范，使用 url 和 movie
+                type: "url", 
+                mediaType: "movie", 
+                videoUrl: null, // VOD 规范：列表必须声明 videoUrl 为 null
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
+                backdropPath: coverUrl,
                 link: href,
                 description: `时长: ${duration} | 番号: ${videoId}`,
                 customHeaders: HEADERS
@@ -102,9 +128,9 @@ function parseVideoList(html) {
 
 // 模块浏览
 async function loadList(params = {}) {
-    const { page = 1, category = "dm588/cn/release" } = params;
-    let url = `${BASE_URL}/${category}`;
-    if (page > 1) url += `?page=${page}`;
+    const { page = 1, category = "dm588/cn/release", sort = "released_at" } = params;
+    let url = `${BASE_URL}/${category}?sort=${sort}`;
+    if (page > 1) url += `&page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
         return parseVideoList(res.data);
@@ -133,7 +159,7 @@ async function globalSearch(params = {}) {
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 详情与播放解析（标准详情页骨架）
+// 详情与播放解析
 async function loadDetail(item) {
     let targetUrl = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetUrl || typeof targetUrl !== 'string') return [];
@@ -157,51 +183,46 @@ async function loadDetail(item) {
                 if (uuidMatches && uuidMatches.length > 0) { videoUrl = `https://surrit.com/${uuidMatches[0]}/playlist.m3u8`; return false; }
             }
         });
+        
         if (!videoUrl) {
             const matchSimple = html.match(/source\s*=\s*['"]([^'"]+)['"]/);
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
         if (videoUrl) {
-            // 完美解析：返回标准结构
+            // 🔴 关键修复3：100% 对齐 VOD.js 详情页对象结构，且带有强力的防盗链 Header
             return {
-                id: targetUrl, // 纯净的 URL
-                type: "url",
-                mediaType: "tv", // 剧集模式，防止跑到相似作品
-                title: title,
-                videoUrl: videoUrl,
+                id: targetUrl, 
+                videoUrl: videoUrl, // 根级暴露
+                type: "url", 
+                mediaType: "movie", 
+                title: title || "未知标题",
                 posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-                customHeaders: HEADERS,
+                backdropPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
+                link: targetUrl,
+                customHeaders: PLAY_HEADERS,
                 childItems: [
                     {
-                        id: targetUrl + "_ep1",
-                        type: "url", // 选集必须是 url 格式
+                        id: targetUrl + "_ep1", 
+                        type: "url", 
+                        mediaType: "episode", // 选集专属
                         title: "▶ 点击播放正片",
                         videoUrl: videoUrl,
-                        mediaType: "episode",
-                        customHeaders: HEADERS
+                        customHeaders: PLAY_HEADERS
                     }
                 ]
             };
         } else {
-            // 防刷盾骨架：没抓到链接也返回详情页框架，提供友好的文字提示，绝对不崩溃
+            // 如果没抓到视频，提供保底骨架屏避免空白崩溃
             return { 
-                id: targetUrl, 
-                type: "url", 
-                mediaType: "tv", 
-                title: "解析缓慢或遇人机验证，请下拉刷新重试", 
-                posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-                childItems: [] 
+                id: targetUrl, type: "url", mediaType: "movie", 
+                title: "视频解析失败，请下拉刷新", childItems: [] 
             };
         }
     } catch (e) {
-        // 网络崩溃骨架
         return { 
-            id: targetUrl, 
-            type: "url", 
-            mediaType: "tv", 
-            title: "网络错误，请下拉刷新重试", 
-            childItems: [] 
+            id: targetUrl, type: "url", mediaType: "movie", 
+            title: "网络加载错误，请下拉刷新", childItems: [] 
         };
     }
 }
