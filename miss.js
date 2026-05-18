@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "修复历史记录与高清画质",
-    version: "4.3.0",
+    description: "终极涅槃版：根治相似作品错位、历史记录掉线、画质降级",
+    version: "6.0.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -106,9 +106,9 @@ function parseVideoList(html) {
 
             results.push({
                 id: href, 
-                type: "url", // 统一进详情页
-                mediaType: "movie", // 宣称这是一部独立电影
-                videoUrl: null, // VOD规范要求列表处视频链接置空
+                type: "url", 
+                mediaType: "tv", // ✨ 黄金法则 1：列表页强行声明为 TV 剧集，根除相似作品 Bug
+                videoUrl: null, 
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -162,8 +162,8 @@ async function loadDetail(item) {
 
     let fetchUrl = targetId;
 
-    // 🔴 终极修复：深度洗白被污染的历史记录 ID。
-    // 如果你之前的历史记录存了带有 _ep、_episode 的假后缀，统统砍掉，还原真实的网页地址去抓取。
+    // ✨ 黄金法则 2：全链路 ID 洗白。
+    // 无论 APP 传进来的是 Root ID 还是历史记录里带 _ep1 的选集 ID，统统洗白成原生网页链接。
     if (fetchUrl.includes("_ep")) {
         fetchUrl = fetchUrl.split("_ep")[0]; 
     }
@@ -175,7 +175,7 @@ async function loadDetail(item) {
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         
-        // 海报兜底
+        // 封面兜底
         let cover = $('meta[property="og:image"]').attr('content') || "";
         if (!cover) {
             const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
@@ -206,34 +206,39 @@ async function loadDetail(item) {
         }
 
         if (videoUrl) {
-            // 🔴 终极修复：大道至简！
-            // 1. 完全抛弃 childItems，相似作品错位问题直接斩草除根。
-            // 2. 将 videoUrl 放在最外层，APP 会自动生成唯一的播放按钮（带绿色勾勾那个）。
-            // 3. 在最外层绑定 playerType: "system"，瞬间召唤 1080P 超清内核！
+            // ✨ 黄金法则 3：永远返回稳如泰山的 TV 详情页结构！绝不返回单薄的数组！
             return {
-                id: targetId, // 永远返回 APP 传入的原始 ID，保证历史记录绝不错乱掉线
+                id: fetchUrl, // 使用洗白后的 ID，保证历史状态稳固如山
                 type: "url", 
-                mediaType: "movie", 
+                mediaType: "tv", // 配合子集，彻底告别相似作品
                 title: title || "未知标题",
-                videoUrl: videoUrl, // 提供最新的不过期直链
-                playerType: "system", // ✨ 绑定系统高清内核
+                videoUrl: null, // 根节点绝不放链接，避免生成降画质的顶部播放按钮
                 posterPath: finalCover,
                 backdropPath: finalCover,
                 link: fetchUrl,
-                customHeaders: PLAY_HEADERS
-                // 【注意：坚决不要 childItems】
+                customHeaders: PLAY_HEADERS,
+                childItems: [
+                    {
+                        id: fetchUrl + "_ep1", 
+                        type: "url", // 必须是 url，否则又变相似作品
+                        mediaType: "episode", 
+                        title: "▶ 点击播放超清正片",
+                        videoUrl: videoUrl, // 新鲜热乎的链接放在这
+                        playerType: "system", // ✨ 黄金法则 4：绑定系统超清播放器！
+                        customHeaders: PLAY_HEADERS
+                    }
+                ]
             };
         } else {
-            // 即使被拦截或者没抓到视频，也要返回带有 id 的空骨架，保证下拉刷新时不崩溃
             return { 
-                id: targetId, type: "url", mediaType: "movie", 
-                title: "视频解析失败，请下拉刷新", posterPath: finalCover 
+                id: fetchUrl, type: "url", mediaType: "tv", 
+                title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
             };
         }
     } catch (e) {
         return { 
-            id: targetId, type: "url", mediaType: "movie", 
-            title: "网络加载错误，请下拉刷新" 
+            id: fetchUrl, type: "url", mediaType: "tv", 
+            title: "网络加载错误，请下拉刷新", childItems: [] 
         };
     }
 }
