@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极无瑕版：全量对齐原生播放器，彻底修复错位与画质",
-    version: "4.1.0",
+    description: "最终无瑕版：100%对齐VOD标准，修复UI错位与超清画质",
+    version: "4.2.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -107,8 +107,8 @@ function parseVideoList(html) {
             results.push({
                 id: href, 
                 type: "url", 
-                mediaType: "tv", // 强制剧集模式
-                videoUrl: null,  // 🔴 修复1：坚决不放根节点链接，杜绝生成糊画质的顶部按钮
+                mediaType: "movie", 
+                videoUrl: null, 
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -163,10 +163,10 @@ async function loadDetail(item) {
     let fetchUrl = targetId;
     let isEpisodeClick = false;
 
-    // 🔴 历史记录/继续观看的完美拦截器
-    if (fetchUrl.endsWith("_episode")) {
+    // 历史记录与防过期链接的无敌拦截器
+    if (fetchUrl.endsWith("_ep1")) {
         isEpisodeClick = true;
-        fetchUrl = fetchUrl.replace("_episode", ""); 
+        fetchUrl = fetchUrl.replace("_ep1", ""); 
     }
 
     try {
@@ -207,34 +207,35 @@ async function loadDetail(item) {
 
         if (videoUrl) {
             if (isEpisodeClick) {
-                // 🔴 修复2：从【历史记录】点进来，直接返回系统播放器接管的高清视频对象！永不过期！
+                // 🔴 拦截器生效：从选集或【继续观看】进入时，强制返回原生高清数组！永不糊，永不过期！
                 return [{
-                    id: targetId, 
+                    id: fetchUrl, // 把干净的 ID 存入历史记录
                     type: "video", 
                     title: title || "正在播放",
-                    videoUrl: videoUrl,
-                    playerType: "system", // ✨ 高清内核唤醒
+                    videoUrl: videoUrl, // 每次重新抓取的新鲜链接
+                    playerType: "system", // ✨ 强制唤醒系统最高清内核！
                     customHeaders: PLAY_HEADERS
                 }];
             } else {
-                // 🔴 修复3：正常的详情页渲染。干掉根节点链接，强制子集为 video 类型！
+                // 🔴 正常的详情页渲染 (100% 对齐 VOD.js 标准)
                 return {
                     id: targetId,
                     type: "url", 
-                    mediaType: "tv", 
+                    mediaType: "movie", 
                     title: title || "未知标题",
+                    videoUrl: videoUrl, // ✨ 修复核心1：有了这个，蓝色的"暂无可用资源"瞬间消失！
+                    playerType: "system", 
                     posterPath: finalCover,
                     backdropPath: finalCover,
                     link: fetchUrl,
-                    // 绝不放 videoUrl 在这里！
+                    customHeaders: PLAY_HEADERS,
                     childItems: [
                         {
-                            id: fetchUrl + "_episode", // 绑定拦截器
-                            type: "video", // ✨ 必须是 video！否则就会被当成网页跑到相似作品去！
+                            id: fetchUrl + "_ep1", // 点击这里将触发上面的拦截器要高清链接
+                            type: "url", // ✨ 修复核心2：必须是 url！如果是 video 就会跑到"相似作品"！
                             mediaType: "episode", 
-                            title: "▶ 点击播放高清正片",
+                            title: "▶ 点击播放超清正片",
                             videoUrl: videoUrl,
-                            playerType: "system", // ✨ 高清内核绑定
                             customHeaders: PLAY_HEADERS
                         }
                     ]
@@ -242,13 +243,13 @@ async function loadDetail(item) {
             }
         } else {
             return { 
-                id: targetId, type: "url", mediaType: "tv", 
+                id: targetId, type: "url", mediaType: "movie", 
                 title: "视频解析失败，请下拉刷新", posterPath: finalCover, childItems: [] 
             };
         }
     } catch (e) {
         return { 
-            id: targetId, type: "url", mediaType: "tv", 
+            id: targetId, type: "url", mediaType: "movie", 
             title: "网络加载错误，请下拉刷新", childItems: [] 
         };
     }
