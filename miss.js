@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极涅槃版：根治相似作品错位、历史记录掉线、画质降级",
-    version: "6.0.0",
+    description: "历史记录掉线、画质降级",
+    version: "4.4.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
