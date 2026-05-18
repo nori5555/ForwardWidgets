@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "全局搜索完美版 (统一使用详情页播放)",
-    version: "3.3.6",
+    description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
+    version: "3.3.7",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -61,9 +61,12 @@ const HEADERS = {
     "Referer": "https://missav.ai/"
 };
 
-// 解析列表（大一统版，摒弃双修逻辑，全量拥抱标准详情页）
-function parseVideoList(html) {
-    if (!html || html.includes("Just a moment")) return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍后重试" }];
+// 解析列表
+function parseVideoList(html, isGlobal = false) {
+    // 防御拦截提示
+    if (!html || html.includes("Just a moment") || html.includes("Cloudflare")) {
+        return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍候或检查网络" }];
+    }
 
     const $ = Widget.html.load(html);
     const results = [];
@@ -82,14 +85,19 @@ function parseVideoList(html) {
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
             results.push({
-                id: href, // 最纯净的原生网址，绝不会被 APP 拦截或篡改
-                type: "url", // 🔴 模块内和全局全部统一为 url，触发标准详情页
-                mediaType: "movie", // 🔴 告诉 APP 这是电影，防丢相似推荐区
+                id: href, // 绝对纯洁的原始链接，不加任何前后缀
+                
+                // 严格对齐 VOD.js 规范
+                type: isGlobal ? "url" : "link", 
+                mediaType: isGlobal ? "movie" : undefined, 
+                videoUrl: null, // VOD.js 中的防崩溃必须项
+                
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
                 link: href,
                 description: `时长: ${duration} | 番号: ${videoId}`,
+                _isGlobal: isGlobal, // 私有隐形标记，传给 loadDetail 用于首次判定
                 customHeaders: HEADERS
             });
         }
@@ -104,7 +112,7 @@ async function loadList(params = {}) {
     if (page > 1) url += `?page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data);
+        return parseVideoList(res.data, false);
     } catch (e) { return [{ id: "err", type: "text", title: "加载失败" }]; }
 }
 
@@ -115,7 +123,7 @@ async function searchList(params = {}) {
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}` + (params.page > 1 ? `?page=${params.page}` : "");
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data);
+        return parseVideoList(res.data, false);
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
@@ -126,14 +134,30 @@ async function globalSearch(params = {}) {
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}` + (params.page > 1 ? `?page=${params.page}` : "");
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data); 
+        return parseVideoList(res.data, true); 
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 详情与播放解析（标准合一版）
+// 详情与播放解析
 async function loadDetail(item) {
-    let targetUrl = typeof item === 'object' ? (item.id || item.link) : item;
-    if (!targetUrl || typeof targetUrl !== 'string') return [];
+    let targetUrl = "";
+    let isGlobal = false;
+
+    // 【终极绝杀】：通过上下文动态推断状态，彻底告别 URL 篡改！
+    if (typeof item === 'object') {
+        targetUrl = item.id || item.link;
+        // 如果从列表传来的是 url 类型，或者是带了私有标记，那就是全局搜索
+        if (item.type === 'url' || item._isGlobal) {
+            isGlobal = true;
+        }
+    } else if (typeof item === 'string') {
+        targetUrl = item;
+        // 【核心灵魂】：只有在“详情页”下拉刷新时，APP 才会只传一个字符串 ID 过来。
+        // 而模块内秒播是没有详情页的！所以只要收到字符串，100% 说明用户正在刷新全局搜索的详情页！
+        isGlobal = true;
+    }
+
+    if (!targetUrl) return [];
 
     try {
         const res = await Widget.http.get(targetUrl, { headers: HEADERS });
@@ -159,27 +183,51 @@ async function loadDetail(item) {
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
-        // 🔴 无论从哪里点进来，100% 走标准详情页渲染，保证 Forward 底层绝对不崩
-        return {
+        if (videoUrl) {
+            if (isGlobal) {
+                // 完全对齐 VOD.js 的规范
+                return {
+                    id: targetUrl, 
+                    type: "url", 
+                    mediaType: "movie", 
+                    title: title,
+                    videoUrl: videoUrl,
+                    posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
+                    customHeaders: HEADERS,
+                    childItems: [
+                        {
+                            id: targetUrl + "_ep1",
+                            type: "url", 
+                            title: "▶ 点击播放正片",
+                            videoUrl: videoUrl,
+                            mediaType: "episode", 
+                            customHeaders: HEADERS
+                        }
+                    ]
+                };
+            } else {
+                // 模块内点进来的，维持纯净瞬间秒播！
+                return [{
+                    id: targetUrl,
+                    type: "video",
+                    title: title,
+                    videoUrl: videoUrl,
+                    playerType: "system",
+                    customHeaders: HEADERS
+                }];
+            }
+        }
+    } catch (e) {}
+    
+    // 兜底防崩：如果全局搜索因为网络卡顿/被盾没抓到视频，强制返回空骨架，保证详情页不消失不崩溃！
+    if (isGlobal) {
+         return {
             id: targetUrl, 
             type: "url", 
             mediaType: "movie", 
-            title: title || "正在解析...",
-            videoUrl: videoUrl,
-            posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-            customHeaders: HEADERS,
-            childItems: videoUrl ? [
-                {
-                    id: targetUrl + "_ep1", 
-                    type: "url", 
-                    title: "▶ 点击播放正片",
-                    videoUrl: videoUrl,
-                    mediaType: "episode", 
-                    customHeaders: HEADERS
-                }
-            ] : []
-        };
-    } catch (e) {}
-    
-    return { id: targetUrl, type: "url", mediaType: "movie", title: "加载失败，请重试", childItems: [] };
+            title: "加载缓慢或遇验证，请下拉刷新",
+            childItems: []
+         };
+    }
+    return [];
 }
