@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
-    version: "3.3.5",
+    description: "全局搜索完美版 (统一使用详情页播放)",
+    version: "3.3.6",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -61,8 +61,8 @@ const HEADERS = {
     "Referer": "https://missav.ai/"
 };
 
-// 解析列表
-function parseVideoList(html, isGlobal = false) {
+// 解析列表（大一统版，摒弃双修逻辑，全量拥抱标准详情页）
+function parseVideoList(html) {
     if (!html || html.includes("Just a moment")) return [{ id: "err", type: "text", title: "被拦截", subTitle: "请稍后重试" }];
 
     const $ = Widget.html.load(html);
@@ -81,18 +81,14 @@ function parseVideoList(html, isGlobal = false) {
             const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
-            // 🔴 核心修复 1：使用极端的物理前缀，保证 Forward 解析器绝对不会误删
-            const finalId = isGlobal ? `global|||${href}` : href;
-
             results.push({
-                id: finalId, 
-                // 🔴 核心修复 2：严格区分类型，全局搜索使用 url+movie，模块依然用 link
-                type: isGlobal ? "url" : "link", 
-                mediaType: isGlobal ? "movie" : undefined, 
+                id: href, // 最纯净的原生网址，绝不会被 APP 拦截或篡改
+                type: "url", // 🔴 模块内和全局全部统一为 url，触发标准详情页
+                mediaType: "movie", // 🔴 告诉 APP 这是电影，防丢相似推荐区
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
-                link: finalId, // link 必须与 id 同步，防止刷新时状态偏移
+                link: href,
                 description: `时长: ${duration} | 番号: ${videoId}`,
                 customHeaders: HEADERS
             });
@@ -108,7 +104,7 @@ async function loadList(params = {}) {
     if (page > 1) url += `?page=${page}`;
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, false);
+        return parseVideoList(res.data);
     } catch (e) { return [{ id: "err", type: "text", title: "加载失败" }]; }
 }
 
@@ -119,7 +115,7 @@ async function searchList(params = {}) {
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}` + (params.page > 1 ? `?page=${params.page}` : "");
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, false);
+        return parseVideoList(res.data);
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
@@ -130,21 +126,17 @@ async function globalSearch(params = {}) {
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}` + (params.page > 1 ? `?page=${params.page}` : "");
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data, true); 
+        return parseVideoList(res.data); 
     } catch (e) { return [{ id: "err", type: "text", title: "搜索失败" }]; }
 }
 
-// 详情与播放解析
+// 详情与播放解析（标准合一版）
 async function loadDetail(item) {
-    let targetId = typeof item === 'object' ? (item.id || item.link) : item;
-    if (!targetId || typeof targetId !== 'string') return [];
-
-    // 🔴 核心修复 3：精准识别物理前缀，并剥离出纯净地址用于网络请求
-    let isGlobal = targetId.startsWith("global|||");
-    let fetchUrl = targetId.replace("global|||", "");
+    let targetUrl = typeof item === 'object' ? (item.id || item.link) : item;
+    if (!targetUrl || typeof targetUrl !== 'string') return [];
 
     try {
-        const res = await Widget.http.get(fetchUrl, { headers: HEADERS });
+        const res = await Widget.http.get(targetUrl, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
         
@@ -167,44 +159,27 @@ async function loadDetail(item) {
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
-        if (isGlobal) {
-            // 🔴 核心修复 4：即使遇到网络限流导致 videoUrl 为空，也强制返回详情页骨架！绝对防止页面消失崩溃！
-            return {
-                id: targetId, // 必须把前缀原封不动还给 APP
-                link: targetId,
-                type: "url", 
-                mediaType: "movie", 
-                title: title || "正在解析或需要刷新...",
-                videoUrl: videoUrl,
-                posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-                customHeaders: HEADERS,
-                // 如果抓到了链接，就显示播放按钮；没抓到就为空，但外层页面不会崩
-                childItems: videoUrl ? [
-                    {
-                        id: targetId + "_ep1", 
-                        type: "url", // 保证按钮老老实实呆在选集区，不去相似推荐区
-                        title: "▶ 点击播放正片",
-                        videoUrl: videoUrl,
-                        mediaType: "episode", 
-                        customHeaders: HEADERS
-                    }
-                ] : []
-            };
-        } else {
-            // 这是你要的模块内瞬间秒播
-            if (videoUrl) {
-                return [{
-                    id: fetchUrl,
-                    type: "video",
-                    title: title,
+        // 🔴 无论从哪里点进来，100% 走标准详情页渲染，保证 Forward 底层绝对不崩
+        return {
+            id: targetUrl, 
+            type: "url", 
+            mediaType: "movie", 
+            title: title || "正在解析...",
+            videoUrl: videoUrl,
+            posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
+            customHeaders: HEADERS,
+            childItems: videoUrl ? [
+                {
+                    id: targetUrl + "_ep1", 
+                    type: "url", 
+                    title: "▶ 点击播放正片",
                     videoUrl: videoUrl,
-                    playerType: "system",
+                    mediaType: "episode", 
                     customHeaders: HEADERS
-                }];
-            }
-        }
+                }
+            ] : []
+        };
     } catch (e) {}
     
-    // 最终保底防崩
-    return isGlobal ? { id: targetId, type: "url", mediaType: "movie", title: "加载失败，请重试", childItems: [] } : [];
+    return { id: targetUrl, type: "url", mediaType: "movie", title: "加载失败，请重试", childItems: [] };
 }
