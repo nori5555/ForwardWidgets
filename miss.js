@@ -3,7 +3,7 @@ var WidgetMetadata = {
     title: "MissAV",
     author: "Forward_User",
     description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
-    version: "3.3.0",
+    version: "3.3.1",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -172,7 +172,8 @@ async function loadDetail(item) {
             if (isGlobal) {
                 // 【核心优化3】：全局搜索专属的返回格式，完全兼容 Forward APP 的详情页规范（抛弃 episodes，改用 childItems）
                 return {
-                    id: targetUrl,
+                    // 👇 完美修复：把 #global_search 标记保留下来还给APP，刷新再也不会迷路了！
+                    id: targetUrl + "#global_search", 
                     type: "video",
                     title: title,
                     videoUrl: videoUrl, // 提供根级直链
