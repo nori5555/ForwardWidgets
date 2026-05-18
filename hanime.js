@@ -1,10 +1,10 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
     title: "Hanime1完美版",
-    description: "全局搜索+优先1080P+历史防掉链",
+    description: "全局搜索+优先1080P+消灭数据缺失警告",
     author: "skywazzle + AI",
     site: "https://hanime1.me",
-    version: "2.5.0", 
+    version: "2.5.1", 
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
@@ -170,7 +170,6 @@ var WidgetMetadata = {
             params: []
         }
     ],
-    // 🌟 新增：接入 Forward 全局搜索与详情底层入口
     search: {
         title: "Hanime1 搜索",
         functionName: "globalSearch",
@@ -262,7 +261,8 @@ async function fetchAndParse(url) {
 
             items.push({
                 id: link,
-                type: "url", // Forward 规范：列表页用 url 进详情
+                type: "url", 
+                videoUrl: null, // 🔴 修复核心：显式占位，防止退出时 APP 反序列化抛警告
                 title: title,
                 posterPath: poster,
                 backdropPath: poster,
@@ -316,7 +316,6 @@ async function searchVideos(params) {
     return fetchAndParse(url);
 }
 
-// 🌟 新增：为全局搜索准备的独立通道
 async function globalSearch(params) {
     const page = params.page || 1;
     const keyword = params.keyword || params.query || params.wd || "";
@@ -412,6 +411,7 @@ function parsePreviewsHtml(html) {
         items.push({
             id: link,
             type: "url",
+            videoUrl: null, // 🔴 修复核心：显式占位
             title: title,
             posterPath: normalizeImageUrl(poster),
             backdropPath: normalizeImageUrl(poster),
@@ -440,13 +440,10 @@ async function loadPreviews(params) {
     }
 }
 
-// --- 🌟 完美详情加载（修复高清、拦截失效历史） ---
-
 async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetId || typeof targetId !== 'string') throw new Error("参数错误");
 
-    // 洗白历史记录中的脏数据后缀
     let fetchUrl = targetId;
     if (fetchUrl.includes("_ep")) {
         fetchUrl = fetchUrl.split("_ep")[0];
@@ -456,7 +453,6 @@ async function loadDetail(item) {
         const response = await httpGetWithTimeout(fetchUrl);
         const $ = Widget.html.load(response.data);
 
-        // 🌟 修复高清画质：反转数组优先级！优先抓取 1080p，原版先抓 SD 导致变糊。
         let videoUrl = "";
         const qualityIds = ['#video-1080p', '#video-720p', '#video-hd', '#video-sd'];
         for (const id of qualityIds) {
@@ -486,7 +482,6 @@ async function loadDetail(item) {
         const desc = $('meta[property="og:description"]').attr('content') || "";
         const cover = $('meta[property="og:image"]').attr('content') || "";
 
-        // 解析网站底部原生的相关推荐视频 (放这里才是真正的相似作品，绝不影响顶部的正片播放)
         const childItems = [];
         $('.home-rows-videos-div a[href*="/watch?v="]').each((i, el) => {
             if (i >= 10) return false; 
@@ -508,6 +503,7 @@ async function loadDetail(item) {
             childItems.push({
                 id: recLink,
                 type: "url", 
+                videoUrl: null, // 🔴 修复核心：显式占位
                 title: recTitle,
                 posterPath: recPoster,
                 backdropPath: recPoster,
@@ -516,24 +512,5 @@ async function loadDetail(item) {
             });
         });
 
-        // 🌟 最终标准化输出结构
         return {
-            id: fetchUrl, // 使用洗白后的网址，保证下次再看绝不掉线
-            type: "url", // 标准详情页类型
-            videoUrl: videoUrl, // 提供最高清的正片链接
-            playerType: "system", // 🌟 注入原生高清播放内核
-            title: title,
-            description: desc,
-            posterPath: normalizeImageUrl(cover),
-            backdropPath: normalizeImageUrl(cover),
-            mediaType: "movie",
-            link: fetchUrl,
-            childItems: childItems, // 这些是正经的推荐视频，会自动进入相似作品列表
-            customHeaders: getCommonHeaders() // 🌟 修复底层规范：由 headers 改为 customHeaders
-        };
-
-    } catch (error) {
-        // 如果遇到异常（如网络问题），直接抛出异常保护界面的播放按钮，避免因为返回空数据被抹除
-        throw new Error("加载失败，请下拉刷新: " + error.message);
-    }
-}
+            id: fetchUrl,
