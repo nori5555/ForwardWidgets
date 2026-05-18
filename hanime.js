@@ -4,7 +4,7 @@ var WidgetMetadata = {
     description: "全局搜索+1080P优先+历史防掉链 (完美去警告)",
     author: "skywazzle + AI",
     site: "https://hanime1.me",
-    version: "2.6.0",
+    version: "2.7.0",
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
