@@ -2,8 +2,8 @@ var WidgetMetadata = {
     id: "missav_makka_play",
     title: "MissAV",
     author: "Forward_User",
-    description: "终极历史记录修复版 (完美解决收藏与继续观看失效)",
-    version: "3.7.0",
+    description: "终极超清修复版 (恢复系统播放内核，满血高清)",
+    version: "3.8.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -108,7 +108,7 @@ function parseVideoList(html) {
                 id: href, 
                 type: "url", 
                 mediaType: "movie", 
-                videoUrl: null, // 强制每次点击都重新获取最新播放链接
+                videoUrl: null, 
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
@@ -160,10 +160,9 @@ async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetId || typeof targetId !== 'string') return [];
 
-    // 🔴 终极漏洞修复1：ID洗白。从历史记录/收藏中恢复的 ID 会带有 "_ep1" 后缀，导致 404
     let fetchUrl = targetId;
     if (fetchUrl.includes("_ep")) {
-        fetchUrl = fetchUrl.split("_ep")[0]; // 剔除选集后缀，还原真实的视频网页链接
+        fetchUrl = fetchUrl.split("_ep")[0]; 
     }
 
     try {
@@ -173,7 +172,6 @@ async function loadDetail(item) {
         
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         
-        // 🔴 终极漏洞修复2：提取封面兜底。因为从历史记录恢复的 item 会丢失海报图片
         let cover = $('meta[property="og:image"]').attr('content') || "";
         if (!cover) {
             const videoIdMatch = fetchUrl.match(/\/([a-z0-9\-]+)$/i);
@@ -205,22 +203,24 @@ async function loadDetail(item) {
 
         if (videoUrl) {
             return {
-                id: fetchUrl, // 返回洗白后的纯净 ID，保证下次存入历史记录的是原生影片链接
-                videoUrl: videoUrl, // 每次重新解析并抓取不过期的播放链接
+                id: fetchUrl, 
+                videoUrl: videoUrl, 
                 type: "url", 
                 mediaType: "movie", 
                 title: title || "未知标题",
                 posterPath: finalCover,
                 backdropPath: finalCover,
                 link: fetchUrl,
+                playerType: "system", // 🔴 修复1：在根节点召唤系统高清播放器
                 customHeaders: PLAY_HEADERS,
                 childItems: [
                     {
                         id: fetchUrl + "_ep1", 
                         type: "url", 
                         mediaType: "episode", 
-                        title: "▶ 点击播放正片",
+                        title: "▶ 点击播放高清正片",
                         videoUrl: videoUrl,
+                        playerType: "system", // 🔴 修复2：在选集按钮召唤系统高清播放器
                         customHeaders: PLAY_HEADERS
                     }
                 ]
