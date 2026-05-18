@@ -3,8 +3,8 @@ var WidgetMetadata = {
     title: "Hanime1修复",
     description: "全局搜索 + 1080P优先 + 解决退出报缺失数据",
     author: "skywazzle",
-    site: "https://hanime1.me",
-    version: "2.4.1",
+    site: "[https://hanime1.me](https://hanime1.me)",
+    version: "2.4.2",
     requiredVersion: "0.0.2",
     detailCacheDuration: 300,
     modules: [
@@ -170,7 +170,6 @@ var WidgetMetadata = {
             params: []
         }
     ],
-    // 🌟 全局搜索底层入口
     search: {
         title: "Hanime1 搜索",
         functionName: "globalSearch",
@@ -181,7 +180,7 @@ var WidgetMetadata = {
     }
 };
 
-const BASE_URL = "https://hanime1.me";
+const BASE_URL = "[https://hanime1.me](https://hanime1.me)";
 const REQUEST_TIMEOUT = 10000; 
 
 function getCommonHeaders() {
@@ -305,7 +304,7 @@ async function searchVideos(params) {
     return fetchAndParse(url);
 }
 
-// 🌟 全局搜索调用接口
+// 全局搜索调用接口
 async function globalSearch(params) {
     const page = params.page || 1;
     const keyword = params.keyword || params.query || params.wd || "";
@@ -411,4 +410,124 @@ function parsePreviewsHtml(html) {
 }
 
 async function loadPreviews(params) {
-    const d = new Date
+    const d = new Date();
+    const year = d.getFullYear();
+    let month = d.getMonth() + 1;
+    if (month < 10) month = '0' + month;
+
+    const url = `${BASE_URL}/previews/${year}${month}`;
+
+    try {
+        const response = await httpGetWithTimeout(url);
+        return parsePreviewsHtml(response.data);
+    } catch (e) {
+        return [];
+    }
+}
+
+async function loadDetail(link) {
+    // 拦截历史记录存储时传入的对象，提取真实链接，防止报错
+    let fetchUrl = typeof link === 'object' ? (link.id || link.link || link.url) : link;
+    if (!fetchUrl || typeof fetchUrl !== 'string') return [];
+    
+    // 清理历史残留后缀
+    if (fetchUrl.includes("_ep")) {
+        fetchUrl = fetchUrl.split("_ep")[0];
+    }
+
+    try {
+        const response = await httpGetWithTimeout(fetchUrl);
+        const $ = Widget.html.load(response.data);
+
+        // 高清画质提取逻辑（反转顺序，1080p 优先）
+        let videoUrl = "";
+        const qualityIds = ['#video-1080p', '#video-720p', '#video-hd', '#video-sd'];
+        for (const id of qualityIds) {
+            const val = $(id).val();
+            if (val) {
+                videoUrl = val;
+                break;
+            }
+        }
+
+        if (!videoUrl) {
+            const match = response.data.match(/source\s*=\s*['"](https:\/\/[^'"]+)['"]/);
+            if (match) videoUrl = match[1];
+        }
+
+        if (!videoUrl) {
+            videoUrl = $('video source').attr('src');
+        }
+
+        if (!videoUrl) {
+            throw new Error("未找到视频地址，可能需登录或该视频已失效");
+        }
+
+        videoUrl = videoUrl.replace(/&amp;/g, '&');
+
+        const title = $('meta[property="og:title"]').attr('content') || "标题未知";
+        const desc = $('meta[property="og:description"]').attr('content') || "";
+        const cover = $('meta[property="og:image"]').attr('content') || "";
+
+        const childItems = [];
+        $('.home-rows-videos-div a[href*="/watch?v="]').each((i, el) => {
+            if (i >= 10) return false; 
+
+            const $a = $(el);
+            let recLink = $a.attr('href');
+            if (!recLink) return;
+            if (!recLink.startsWith('http')) {
+                recLink = BASE_URL + (recLink.startsWith('/') ? '' : '/') + recLink;
+            }
+
+            const $img = $a.find('img').first();
+            let recPoster = $img.attr('data-src') || $img.attr('src') || "";
+            recPoster = normalizeImageUrl(recPoster);
+
+            let recTitle = $a.find('.home-rows-videos-title, [class*="title"]').first().text().trim();
+            if (!recTitle) recTitle = $img.attr('alt') || "相关视频";
+
+            childItems.push({
+                id: recLink,
+                type: "url",
+                title: recTitle,
+                posterPath: recPoster,
+                backdropPath: recPoster,
+                mediaType: "movie",
+                link: recLink
+            });
+        });
+
+        return {
+            id: fetchUrl,
+            type: "detail", 
+            videoUrl: videoUrl,
+            playerType: "system", // 调用系统高清内核
+            title: title,
+            description: desc,
+            posterPath: normalizeImageUrl(cover),
+            backdropPath: normalizeImageUrl(cover),
+            mediaType: "movie",
+            link: fetchUrl,
+            childItems: childItems,
+            headers: getCommonHeaders() 
+        };
+
+    } catch (error) {
+        console.error("Detail load error:", error);
+        let errorMsg = "无法加载视频，请重试。";
+        if (error.message === "video_url_not_found") {
+            errorMsg = "未找到视频地址，可能需登录或该视频已失效。";
+        }
+        return {
+            id: fetchUrl,
+            type: "detail",
+            videoUrl: fetchUrl, 
+            title: "加载失败",
+            description: errorMsg,
+            posterPath: "",
+            mediaType: "movie",
+            link: fetchUrl
+        };
+    }
+}
