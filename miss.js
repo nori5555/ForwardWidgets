@@ -3,7 +3,7 @@ var WidgetMetadata = {
     title: "MissAV",
     author: "Forward_User",
     description: "完美版：100%保留原版模块秒播 + 独立全局搜索",
-    version: "3.3.4",
+    version: "3.3.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -67,9 +67,6 @@ function parseVideoList(html, isGlobal = false) {
 
     const $ = Widget.html.load(html);
     const results = [];
-    
-    // 依然保留隐形前缀，用于区分秒播还是详情页
-    const prefix = isGlobal ? "GLOBAL_MARK::" : "";
 
     $("div.group").each((i, el) => {
         const $el = $(el);
@@ -84,15 +81,18 @@ function parseVideoList(html, isGlobal = false) {
             const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
             const coverUrl = `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` || imgSrc;
 
+            // 🔴 核心修复 1：使用极端的物理前缀，保证 Forward 解析器绝对不会误删
+            const finalId = isGlobal ? `global|||${href}` : href;
+
             results.push({
-                id: prefix + href, 
-                // 🔴 核心修复 1：严格对齐 VOD.js 的规范。全局搜索必须用 "url"，且加上 mediaType: "movie"
+                id: finalId, 
+                // 🔴 核心修复 2：严格区分类型，全局搜索使用 url+movie，模块依然用 link
                 type: isGlobal ? "url" : "link", 
                 mediaType: isGlobal ? "movie" : undefined, 
                 title: title,
                 coverUrl: coverUrl, 
                 posterPath: coverUrl,
-                link: prefix + href, // 把 link 也加上前缀防丢
+                link: finalId, // link 必须与 id 同步，防止刷新时状态偏移
                 description: `时长: ${duration} | 番号: ${videoId}`,
                 customHeaders: HEADERS
             });
@@ -139,17 +139,12 @@ async function loadDetail(item) {
     let targetId = typeof item === 'object' ? (item.id || item.link) : item;
     if (!targetId || typeof targetId !== 'string') return [];
 
-    let isGlobal = false;
-    let requestUrl = targetId;
-
-    // 识别前缀，剥离出真实的请求地址
-    if (requestUrl.startsWith("GLOBAL_MARK::")) {
-        isGlobal = true;
-        requestUrl = requestUrl.replace("GLOBAL_MARK::", ""); 
-    }
+    // 🔴 核心修复 3：精准识别物理前缀，并剥离出纯净地址用于网络请求
+    let isGlobal = targetId.startsWith("global|||");
+    let fetchUrl = targetId.replace("global|||", "");
 
     try {
-        const res = await Widget.http.get(requestUrl, { headers: HEADERS });
+        const res = await Widget.http.get(fetchUrl, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
         
@@ -172,31 +167,34 @@ async function loadDetail(item) {
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
-        if (videoUrl) {
-            if (isGlobal) {
-                // 🔴 核心修复 2：详情页格式完全对齐 VOD.js！
-                return {
-                    id: targetId, // 直接使用传进来的原始 ID，绝对不掉状态
-                    type: "url",  // 必须是 url，和列表里的保持一致
-                    mediaType: "movie", // 必须是 movie，APP 才认识这是一个详情页
-                    title: title,
-                    videoUrl: videoUrl,
-                    posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
-                    customHeaders: HEADERS,
-                    childItems: [
-                        {
-                            id: requestUrl + "_ep1",
-                            type: "url", // 选集也必须是 url
-                            title: "▶ 点击播放正片",
-                            videoUrl: videoUrl,
-                            mediaType: "episode", // 声明这是选集
-                            customHeaders: HEADERS
-                        }
-                    ]
-                };
-            } else {
+        if (isGlobal) {
+            // 🔴 核心修复 4：即使遇到网络限流导致 videoUrl 为空，也强制返回详情页骨架！绝对防止页面消失崩溃！
+            return {
+                id: targetId, // 必须把前缀原封不动还给 APP
+                link: targetId,
+                type: "url", 
+                mediaType: "movie", 
+                title: title || "正在解析或需要刷新...",
+                videoUrl: videoUrl,
+                posterPath: typeof item === 'object' ? (item.posterPath || item.coverUrl || "") : "",
+                customHeaders: HEADERS,
+                // 如果抓到了链接，就显示播放按钮；没抓到就为空，但外层页面不会崩
+                childItems: videoUrl ? [
+                    {
+                        id: targetId + "_ep1", 
+                        type: "url", // 保证按钮老老实实呆在选集区，不去相似推荐区
+                        title: "▶ 点击播放正片",
+                        videoUrl: videoUrl,
+                        mediaType: "episode", 
+                        customHeaders: HEADERS
+                    }
+                ] : []
+            };
+        } else {
+            // 这是你要的模块内瞬间秒播
+            if (videoUrl) {
                 return [{
-                    id: requestUrl,
+                    id: fetchUrl,
                     type: "video",
                     title: title,
                     videoUrl: videoUrl,
@@ -206,5 +204,7 @@ async function loadDetail(item) {
             }
         }
     } catch (e) {}
-    return [];
+    
+    // 最终保底防崩
+    return isGlobal ? { id: targetId, type: "url", mediaType: "movie", title: "加载失败，请重试", childItems: [] } : [];
 }
