@@ -1,6 +1,6 @@
 var WidgetMetadata = {
     id: "hanimel_me_style",
-    title: "Hanime1",
+    title: "Hanime1修复版",
     description: "全局搜索+1080P优先+历史防掉链 (完美去警告)",
     author: "skywazzle + AI",
     site: "https://hanime1.me",
@@ -316,4 +316,213 @@ async function globalSearch(params) {
     if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词开始搜索" }];
     
     let url = `${BASE_URL}/search?query=${encodeURIComponent(keyword)}`;
-    if (page > 1
+    if (page > 1) url += `&page=${page}`;
+    return fetchAndParse(url);
+}
+
+async function loadDailyHot(params) {
+    const page = params.page || 1;
+    let url = `${BASE_URL}/search?sort=${encodeURIComponent('本日排行')}`;
+    if (page > 1) url += `&page=${page}`;
+    return fetchAndParse(url);
+}
+
+async function loadWeeklyHot(params) {
+    const page = params.page || 1;
+    let url = `${BASE_URL}/search?sort=${encodeURIComponent('本週排行')}`;
+    if (page > 1) url += `&page=${page}`;
+    return fetchAndParse(url);
+}
+
+async function loadMonthlyHot(params) {
+    const page = params.page || 1;
+    let url = `${BASE_URL}/search?sort=${encodeURIComponent('本月排行')}`;
+    if (page > 1) url += `&page=${page}`;
+    return fetchAndParse(url);
+}
+
+async function loadNewRelease(params) {
+    const page = params.page || 1;
+    let url = `${BASE_URL}/search?sort=${encodeURIComponent('最新上市')}`;
+    if (page > 1) url += `&page=${page}`;
+    return fetchAndParse(url);
+}
+
+async function loadChineseSubtitle(params) {
+    const page = params.page || 1;
+    const sort = mapSortToApi(params.sort_by);
+    const genre = mapGenreToApi(params.genre);
+
+    let url = `${BASE_URL}/search?tags%5B%5D=${encodeURIComponent('中文字幕')}`;
+
+    if (sort) url += `&sort=${encodeURIComponent(sort)}`;
+    if (genre) url += `&genre=${encodeURIComponent(genre)}`;
+    if (page > 1) url += `&page=${page}`;
+
+    return fetchAndParse(url);
+}
+
+async function loadByGenre(params) {
+    const page = params.page || 1;
+    const genre = mapGenreToApi(params.genre);
+    const sort = mapSortToApi(params.sort_by);
+
+    let url = `${BASE_URL}/search`;
+    const queryParts = [];
+    if (genre) queryParts.push(`genre=${encodeURIComponent(genre)}`);
+    if (sort) queryParts.push(`sort=${encodeURIComponent(sort)}`);
+    if (page > 1) queryParts.push(`page=${page}`);
+
+    if (queryParts.length > 0) {
+        url += '?' + queryParts.join('&');
+    }
+    return fetchAndParse(url);
+}
+
+function parsePreviewsHtml(html) {
+    const $ = Widget.html.load(html);
+    const items = [];
+
+    $('.hidden-sm.hidden-md.hidden-lg .preview-image-modal-trigger').each((i, el) => {
+        const $img = $(el);
+        const poster = $img.attr('src') || $img.attr('data-src');
+        if (!poster) return;
+
+        let title = $img.attr('alt') || "";
+        if (!title) {
+            const $caption = $img.closest('div').find('h5.caption');
+            if ($caption.length) {
+                title = $caption.text().trim();
+                title = title.split('\n')[0];
+            }
+        }
+        if (!title) title = "新番预告";
+        if (title.length > 40) title = title.substring(0, 40) + "...";
+
+        const link = window.location.href; 
+
+        items.push({
+            id: link,
+            type: "url",
+            mediaType: "movie",
+            title: title,
+            posterPath: normalizeImageUrl(poster),
+            backdropPath: normalizeImageUrl(poster),
+            description: "新番预告",
+            link: link
+            // 🔴 剔除画蛇添足的 videoUrl: null
+        });
+    });
+
+    return items;
+}
+
+async function loadPreviews(params) {
+    const d = new Date();
+    const year = d.getFullYear();
+    let month = d.getMonth() + 1;
+    if (month < 10) month = '0' + month;
+
+    const url = `${BASE_URL}/previews/${year}${month}`;
+
+    try {
+        const response = await httpGetWithTimeout(url);
+        return parsePreviewsHtml(response.data);
+    } catch (e) {
+        return [];
+    }
+}
+
+async function loadDetail(link) {
+    let fetchUrl = typeof link === 'object' ? (link.id || link.link) : link;
+    if (!fetchUrl || typeof fetchUrl !== 'string') return [];
+    
+    // 拦截历史记录中残留的脏数据后缀
+    if (fetchUrl.includes("_ep")) {
+        fetchUrl = fetchUrl.split("_ep")[0];
+    }
+
+    try {
+        const response = await httpGetWithTimeout(fetchUrl);
+        const $ = Widget.html.load(response.data);
+
+        // 🌟 高清优先级修复：原版优先SD，现改为优先1080P
+        let videoUrl = "";
+        const qualityIds = ['#video-1080p', '#video-720p', '#video-hd', '#video-sd'];
+        for (const id of qualityIds) {
+            const val = $(id).val();
+            if (val) {
+                videoUrl = val;
+                break;
+            }
+        }
+
+        if (!videoUrl) {
+            const match = response.data.match(/source\s*=\s*['"](https:\/\/[^'"]+)['"]/);
+            if (match) videoUrl = match[1];
+        }
+
+        if (!videoUrl) {
+            videoUrl = $('video source').attr('src');
+        }
+
+        if (!videoUrl) {
+            throw new Error("未找到视频地址，可能需登录或该视频已失效");
+        }
+
+        videoUrl = videoUrl.replace(/&amp;/g, '&');
+
+        const title = $('meta[property="og:title"]').attr('content') || "标题未知";
+        const desc = $('meta[property="og:description"]').attr('content') || "";
+        const cover = $('meta[property="og:image"]').attr('content') || "";
+
+        const childItems = [];
+        $('.home-rows-videos-div a[href*="/watch?v="]').each((i, el) => {
+            if (i >= 10) return false; 
+
+            const $a = $(el);
+            let recLink = $a.attr('href');
+            if (!recLink) return;
+            if (!recLink.startsWith('http')) {
+                recLink = BASE_URL + (recLink.startsWith('/') ? '' : '/') + recLink;
+            }
+
+            const $img = $a.find('img').first();
+            let recPoster = $img.attr('data-src') || $img.attr('src') || "";
+            recPoster = normalizeImageUrl(recPoster);
+
+            let recTitle = $a.find('.home-rows-videos-title, [class*="title"]').first().text().trim();
+            if (!recTitle) recTitle = $img.attr('alt') || "相关视频";
+
+            childItems.push({
+                id: recLink,
+                type: "url",
+                mediaType: "movie",
+                title: recTitle,
+                posterPath: recPoster,
+                backdropPath: recPoster,
+                link: recLink
+                // 🔴 剔除画蛇添足的 videoUrl: null
+            });
+        });
+
+        // 🔴 恢复你原版完美兼容的 type: "detail" 格式，彻底消灭警告
+        return {
+            id: fetchUrl, 
+            type: "detail", 
+            videoUrl: videoUrl,
+            playerType: "system", // ✨ 注入原生高清播放器
+            title: title,
+            description: desc,
+            posterPath: normalizeImageUrl(cover),
+            backdropPath: normalizeImageUrl(cover),
+            mediaType: "movie",
+            link: fetchUrl,
+            childItems: childItems,
+            customHeaders: getCommonHeaders()
+        };
+
+    } catch (error) {
+        throw new Error("加载详情失败: " + error.message);
+    }
+}
