@@ -1,185 +1,570 @@
-var WidgetMetadata = {
-    id: "missav_global_search",
-    title: "MissAV",
-    author: "Forward_User",
-    description: "支持全局搜索与直接播放的完整版 (修复搜索无封面问题)",
-    version: "3.0.3",
+WidgetMetadata = {
+    id: "missav_makka_play",
+    title: "MissAV_ovo",
+    author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖 / EL",
+    description: "MissAV 视频聚合模块，支持中文字幕、日本AV、素人、无码影片、亚洲AV、女优、类型、发行商与搜索",
+    version: "2.3.1",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
         {
-            title: "浏览视频",
+            title: "中文字幕",
             functionName: "loadList",
             type: "video",
             params: [
                 { name: "page", title: "页码", type: "page" },
-                { 
-                    name: "category", 
-                    title: "分类", 
-                    type: "enumeration", 
-                    value: "dm588/cn/release", 
-                    enumOptions: [
-                        { title: "🆕 最新发布", value: "dm588/cn/release" },
-                        { title: "🔥 本周热门", value: "dm169/cn/weekly-hot" },
-                        { title: "🔞 无码流出", value: "dm621/cn/uncensored-leak" },
-                        { title: "🇨🇳 中文字幕", value: "dm265/cn/chinese-subtitle" }
-                    ] 
-                }
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm278/cn/chinese-subtitle", enumOptions: [{ title: "中文字幕", value: "dm278/cn/chinese-subtitle" }] },
+                { name: "filters", title: "filters", type: "enumeration", value: "chinese-subtitle", enumOptions: [
+                    { title: "所有", value: "" },
+                    { title: "单人作品", value: "individual" },
+                    { title: "多人作品", value: "multiple" },
+                    { title: "中文字幕", value: "chinese-subtitle" }
+                ] },
+                { name: "sort", title: "排序", type: "enumeration", value: "released_at", enumOptions: [
+                    { title: "发行日期", value: "released_at" },
+                    { title: "最近更新", value: "published_at" },
+                    { title: "收藏数", value: "saved" },
+                    { title: "今日浏览数", value: "today_views" },
+                    { title: "本周浏览数", value: "weekly_views" },
+                    { title: "本月浏览数", value: "monthly_views" },
+                    { title: "总浏览数", value: "views" }
+                ] }
+            ]
+        },
+        {
+            title: "日本AV",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm632/cn/release", enumOptions: [
+                    { title: "最新发布", value: "dm632/cn/release" },
+                    { title: "本周热门", value: "dm170/cn/weekly-hot" },
+                    { title: "月度热门", value: "dm266/cn/monthly-hot" }
+                ] }
+            ]
+        },
+        {
+            title: "素人",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm36/cn/siro", enumOptions: [
+                    { title: "SIRO", value: "dm36/cn/siro" },
+                    { title: "LUXU", value: "dm34/cn/luxu" },
+                    { title: "GANA", value: "dm32/cn/gana" },
+                    { title: "PRESTIGE PREMIUM", value: "dm999/cn/maan" },
+                    { title: "S-CUTE", value: "dm38/cn/scute" },
+                    { title: "ARA", value: "dm34/cn/ara" }
+                ] }
+            ]
+        },
+        {
+            title: "无码影片",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm814/cn/uncensored-leak", enumOptions: [
+                    { title: "无码流出", value: "dm814/cn/uncensored-leak" },
+                    { title: "东京热", value: "dm42/cn/tokyohot" }
+                ] }
+            ]
+        },
+        {
+            title: "亚洲AV",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm63/cn/madou", enumOptions: [
+                    { title: "麻豆传媒", value: "dm63/cn/madou" },
+                    { title: "TWAV", value: "dm31/cn/twav" },
+                    { title: "Furuke", value: "dm15/cn/furuke" },
+                    { title: "韩国直播", value: "cn/klive" },
+                    { title: "中国直播", value: "cn/clive" }
+                ] }
+            ]
+        },
+        {
+            title: "女优",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm179/cn/actresses/%E7%80%AC%E6%88%B8%E7%92%B0%E5%A5%88", enumOptions: [
+                    { title: "瀬戸環奈", value: "dm179/cn/actresses/%E7%80%AC%E6%88%B8%E7%92%B0%E5%A5%88" },
+                    { title: "逢泽みゆ", value: "dm179/cn/actresses/%E9%80%A2%E6%B2%A2%E3%81%BF%E3%82%86" },
+                    { title: "河北彩花", value: "dm179/cn/actresses/%E6%B2%B3%E5%8C%97%E5%BD%A9%E8%8A%B1" },
+                    { title: "松本一香", value: "dm179/cn/actresses/%E6%9D%BE%E6%9C%AC%E4%B8%80%E9%A6%99" },
+                    { title: "美园和花", value: "dm179/cn/actresses/%E7%BE%8E%E5%9B%AD%E5%92%8C%E8%8A%B1" },
+                    { title: "北冈果林", value: "dm179/cn/actresses/%E5%8C%97%E5%B2%A1%E6%9E%9C%E6%9E%97" },
+                    { title: "柏木こなつ", value: "dm179/cn/actresses/%E6%9F%8F%E6%9C%A8%E3%81%93%E3%81%AA%E3%81%A4" },
+                    { title: "浅野こころ", value: "dm179/cn/actresses/%E6%B5%85%E9%87%8E%E3%81%93%E3%81%93%E3%82%8D" },
+                    { title: "北野未奈", value: "dm179/cn/actresses/%E5%8C%97%E9%87%8E%E6%9C%AA%E5%A5%88" },
+                    { title: "清原みゆう", value: "dm179/cn/actresses/%E6%B8%85%E5%8E%9F%E3%81%BF%E3%82%86%E3%81%86" },
+                    { title: "沙月惠奈", value: "dm179/cn/actresses/%E6%B2%99%E6%9C%88%E6%83%A0%E5%A5%88" },
+                    { title: "miru", value: "dm179/cn/actresses/miru" },
+                    { title: "七森莉莉", value: "dm179/cn/actresses/%E4%B8%83%E6%A3%AE%E8%8E%89%E8%8E%89" },
+                    { title: "七濑爱丽丝", value: "dm179/cn/actresses/%E4%B8%83%E6%BF%91%E7%88%B1%E4%B8%BD%E4%B8%9D" },
+                    { title: "鹫尾芽衣", value: "dm179/cn/actresses/%E9%B9%AB%E5%B0%BE%E8%8A%BD%E8%A1%A3" },
+                    { title: "博多彩叶", value: "dm179/cn/actresses/%E5%8D%9A%E5%A4%9A%E5%BD%A9%E5%8F%B6" },
+                    { title: "石川澪", value: "dm179/cn/actresses/%E7%9F%B3%E5%B7%9D%E6%BE%AA" },
+                    { title: "白上咲花", value: "dm179/cn/actresses/%E7%99%BD%E4%B8%8A%E5%92%B2%E8%8A%B1" },
+                    { title: "田野忧", value: "dm179/cn/actresses/%E7%94%B0%E9%87%8E%E5%BF%A7" },
+                    { title: "未步なな", value: "dm179/cn/actresses/%E6%9C%AA%E6%AD%A5%E3%81%AA%E3%81%AA" },
+                    { title: "村上悠华", value: "dm179/cn/actresses/%E6%9D%91%E4%B8%8A%E6%82%A0%E5%8D%8E" },
+                    { title: "三田真铃", value: "dm179/cn/actresses/%E4%B8%89%E7%94%B0%E7%9C%9F%E9%93%83" },
+                    { title: "枫ふうあ", value: "dm179/cn/actresses/%E6%A1%AB%E3%81%B5%E3%81%86%E3%81%82" },
+                    { title: "三上悠亚", value: "dm179/cn/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9A" },
+                    { title: "榊原萌", value: "dm179/cn/actresses/%E6%A6%8A%E5%8E%9F%E8%90%8C" },
+                    { title: "彩月七绪", value: "dm179/cn/actresses/%E5%BD%A9%E6%9C%88%E4%B8%83%E7%BB%AA" },
+                    { title: "神宫寺奈绪", value: "dm179/cn/actresses/%E7%A5%9E%E5%AE%AB%E5%AF%BA%E5%A5%88%E7%BB%AA" },
+                    { title: "有村のぞみ", value: "dm179/cn/actresses/%E6%9C%89%E6%9D%91%E3%81%AE%E3%81%9E%E3%81%BF" }
+                ] }
+            ]
+        },
+        {
+            title: "类型",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm96/cn/genres/%E9%AB%98%E6%B8%85", enumOptions: [
+                    { title: "高清", value: "dm96/cn/genres/%E9%AB%98%E6%B8%85" },
+                    { title: "独家", value: "dm139/cn/genres/%E7%8B%AC%E5%AE%B6" },
+                    { title: "中出", value: "dm130/cn/genres/%E4%B8%AD%E5%87%BA" },
+                    { title: "单体作品", value: "dm122/cn/genres/%E5%8D%95%E4%BD%93%E4%BD%9C%E5%93%81" },
+                    { title: "巨乳", value: "dm120/cn/genres/%E5%B7%A8%E4%B9%B3" },
+                    { title: "人妻", value: "dm77/cn/genres/%E4%BA%BA%E5%A6%BB" },
+                    { title: "熟女", value: "dm118/cn/genres/%E7%86%9F%E5%A5%B3" },
+                    { title: "素人", value: "dm123/cn/genres/%E7%B4%A0%E4%BA%BA" },
+                    { title: "美少女", value: "dm437/cn/genres/%E7%BE%8E%E5%B0%91%E5%A5%B3" },
+                    { title: "口交", value: "dm1301/cn/genres/%E5%8F%A3%E4%BA%A4" },
+                    { title: "多人运动", value: "dm321/cn/genres/%E5%A4%9A%E4%BA%BA%E8%BF%90%E5%8A%A8" },
+                    { title: "薄格", value: "dm76/cn/genres/%E8%96%84%E6%A0%BC" },
+                    { title: "骑乘", value: "dm486/cn/genres/%E9%AA%91%E4%B9%98" },
+                    { title: "痴女", value: "dm313/cn/genres/%E7%97%B4%E5%A5%B3" },
+                    { title: "4小时以上", value: "dm738/cn/genres/4%E5%B0%8F%E6%97%B6%E4%BB%A5%E4%B8%8A" },
+                    { title: "女高中生", value: "dm4448/cn/genres/%E5%A5%B3%E9%AB%98%E4%B8%AD%E7%94%9F" },
+                    { title: "潮吹", value: "dm161/cn/genres/%E6%BD%AE%E5%90%B9" },
+                    { title: "苗条", value: "dm757/cn/genres/%E8%8B%97%E6%9D%A1" },
+                    { title: "自拍", value: "dm978/cn/genres/%E8%87%AA%E6%8B%8D" },
+                    { title: "合集", value: "dm784/cn/genres/%E5%90%88%E9%9B%86" },
+                    { title: "乳交", value: "dm594/cn/genres/%E4%B9%B3%E4%BA%A4" },
+                    { title: "恋物癖", value: "dm117/cn/genres/%E6%81%8B%E7%89%A9%E7%99%96" },
+                    { title: "美乳", value: "dm215/cn/genres/%E7%BE%8E%E4%B9%B3" },
+                    { title: "NTR", value: "dm736/cn/genres/NTR" },
+                    { title: "企划", value: "dm341/cn/genres/%E4%BC%81%E5%88%92" },
+                    { title: "乱伦", value: "dm56/cn/genres/%E4%B9%B1%E4%BC%A6" },
+                    { title: "搭讪", value: "dm292/cn/genres/%E6%90%AD%E8%AE%AA" },
+                    { title: "颜射", value: "dm319/cn/genres/%E9%A2%9C%E5%B0%84" },
+                    { title: "淫乱", value: "dm903/cn/genres/%E6%B7%AB%E4%B9%B1" },
+                    { title: "偷拍", value: "dm516/cn/genres/%E5%81%B7%E6%8B%8D" },
+                    { title: "剧情", value: "dm98/cn/genres/%E5%89%A7%E6%83%85" },
+                    { title: "自慰", value: "dm7606/cn/genres/%E8%87%AA%E6%85%B0" },
+                    { title: "4K", value: "dm55/cn/genres/4K" },
+                    { title: "手淫", value: "dm94/cn/genres/%E6%89%8B%E6%B7%AB" },
+                    { title: "姐姐", value: "dm793/cn/genres/%E5%A7%90%E5%A7%90" },
+                    { title: "羞辱", value: "dm161/cn/genres/%E7%BE%9E%E8%BE%B1" }
+                ] }
+            ]
+        },
+        {
+            title: "发行商",
+            functionName: "loadList",
+            type: "video",
+            params: [
+                { name: "page", title: "页码", type: "page" },
+                { name: "endpoint", title: "endpoint", type: "enumeration", value: "dm825/cn/makers/Moody%27s", enumOptions: [
+                    { title: "Moody's", value: "dm825/cn/makers/Moody%27s" },
+                    { title: "Prestige", value: "dm825/cn/makers/Prestige" },
+                    { title: "Madonna", value: "dm825/cn/makers/Madonna" },
+                    { title: "S1", value: "dm825/cn/makers/S1" },
+                    { title: "SOD", value: "dm825/cn/makers/SOD" },
+                    { title: "IdeaPocket", value: "dm825/cn/makers/IdeaPocket" },
+                    { title: "Attackers", value: "dm825/cn/makers/Attackers" },
+                    { title: "Glory Quest", value: "dm825/cn/makers/Glory%20Quest" },
+                    { title: "ビッグモーカル", value: "dm825/cn/makers/%E3%83%93%E3%83%83%E3%82%B0%E3%83%A2%E3%83%BC%E3%82%AB%E3%83%AB" },
+                    { title: "NATURAL HIGH", value: "dm825/cn/makers/NATURAL%20HIGH" },
+                    { title: "Wanz Factory", value: "dm825/cn/makers/Wanz%20Factory" },
+                    { title: "Takara Visual", value: "dm825/cn/makers/Takara%20Visual" },
+                    { title: "Fc2", value: "dm825/cn/makers/Fc2" },
+                    { title: "Premium", value: "dm825/cn/makers/Premium" },
+                    { title: "Fitch", value: "dm825/cn/makers/Fitch" },
+                    { title: "VENUS", value: "dm825/cn/makers/VENUS" },
+                    { title: "DEEP'S", value: "dm825/cn/makers/DEEP%27S" },
+                    { title: "本中", value: "dm825/cn/makers/%E6%9C%AC%E4%B8%AD" },
+                    { title: "Hunter", value: "dm825/cn/makers/Hunter" },
+                    { title: "溜池ゴロー", value: "dm825/cn/makers/%E6%BA%9C%E6%B1%A0%E3%82%B4%E3%83%AD%E3%83%BC" },
+                    { title: "TMA", value: "dm825/cn/makers/TMA" },
+                    { title: "センタービレッジ", value: "dm825/cn/makers/%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC%E3%83%93%E3%83%AC%E3%83%83%E3%82%B8" },
+                    { title: "Das", value: "dm825/cn/makers/Das" },
+                    { title: "Waap Entertainment", value: "dm825/cn/makers/Waap%20Entertainment" },
+                    { title: "Crystal-Eizou", value: "dm825/cn/makers/Crystal-Eizou" },
+                    { title: "kawaii", value: "dm825/cn/makers/kawaii" },
+                    { title: "ゴーゴーズ", value: "dm825/cn/makers/%E3%82%B4%E3%83%BC%E3%82%B4%E3%83%BC%E3%82%BA" },
+                    { title: "プラネットプラス", value: "dm825/cn/makers/%E3%83%97%E3%83%A9%E3%83%8D%E3%83%83%E3%83%88%E3%83%97%E3%83%A9%E3%82%B9" },
+                    { title: "OPPAI", value: "dm825/cn/makers/OPPAI" },
+                    { title: "STAR PARADISE", value: "dm825/cn/makers/STAR%20PARADISE" },
+                    { title: "E-BODY", value: "dm825/cn/makers/E-BODY" },
+                    { title: "セレブの友", value: "dm825/cn/makers/%E3%82%BB%E3%83%AC%E3%83%96%E3%81%AE%E5%8F%8B" },
+                    { title: "ドグマ", value: "dm825/cn/makers/%E3%83%89%E3%82%B0%E3%83%9E" },
+                    { title: "Alice Japan", value: "dm825/cn/makers/Alice%20Japan" },
+                    { title: "KM Produce", value: "dm825/cn/makers/KM%20Produce" },
+                    { title: "桃太郎映像出版", value: "dm825/cn/makers/%E6%A1%83%E5%A4%AA%E9%83%8E%E6%98%A0%E5%83%8F%E5%87%BA%E7%89%88" }
+                ] }
+            ]
+        },
+        {
+            title: "🔍 搜索视频",
+            functionName: "searchList",
+            type: "video",
+            params: [
+                { name: "keyword", title: "关键词", type: "input", value: "" },
+                { name: "page", title: "页码", type: "page" }
             ]
         }
     ],
     search: {
-        title: "MissAV 搜索",
-        functionName: "searchList",
+        title: "🌐 全局搜索",
+        description: "跨模块站内搜索，覆盖中文字幕、日本AV、素人、无码影片、亚洲AV、女优、类型与发行商",
+        functionName: "searchGlobal",
         params: [
-            { name: "keyword", title: "输入番号或关键词", type: "input", value: "" },
-            { name: "page", title: "页码", type: "page" }
+            { name: "keyword", title: "关键词", type: "input", description: "搜索的关键词", value: "" },
+            { name: "page", title: "页码", type: "page", value: "1" }
         ]
     }
 };
 
 const BASE_URL = "https://missav.ai";
 const HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
     "Referer": "https://missav.ai/",
+    "Connection": "keep-alive"
 };
 
-// 提取通用列表解析逻辑
+const ACTRESS_ENDPOINTS = [
+    { title: "瀬户环奈", value: "dm179/cn/actresses/%E7%80%AC%E6%88%B8%E7%92%B0%E5%A5%88" },
+    { title: "逢泽みゆ", value: "dm179/cn/actresses/%E9%80%A2%E6%B2%A2%E3%81%BF%E3%82%86" },
+    { title: "河北彩花", value: "dm179/cn/actresses/%E6%B2%B3%E5%8C%97%E5%BD%A9%E8%8A%B1" },
+    { title: "松本一香", value: "dm179/cn/actresses/%E6%9D%BE%E6%9C%AC%E4%B8%80%E9%A6%99" },
+    { title: "美园和花", value: "dm179/cn/actresses/%E7%BE%8E%E5%9B%AD%E5%92%8C%E8%8A%B1" },
+    { title: "北冈果林", value: "dm179/cn/actresses/%E5%8C%97%E5%B2%A1%E6%9E%9C%E6%9E%97" },
+    { title: "柏木こなつ", value: "dm179/cn/actresses/%E6%9F%8F%E6%9C%A8%E3%81%93%E3%81%AA%E3%81%A4" },
+    { title: "浅野こころ", value: "dm179/cn/actresses/%E6%B5%85%E9%87%8E%E3%81%93%E3%81%93%E3%82%8D" },
+    { title: "北野未奈", value: "dm179/cn/actresses/%E5%8C%97%E9%87%8E%E6%9C%AA%E5%A5%88" },
+    { title: "清原みゆう", value: "dm179/cn/actresses/%E6%B8%85%E5%8E%9F%E3%81%BF%E3%82%86%E3%81%86" },
+    { title: "沙月惠奈", value: "dm179/cn/actresses/%E6%B2%99%E6%9C%88%E6%83%A0%E5%A5%88" },
+    { title: "miru", value: "dm179/cn/actresses/miru" },
+    { title: "七森莉莉", value: "dm179/cn/actresses/%E4%B8%83%E6%A3%AE%E8%8E%89%E8%8E%89" },
+    { title: "七濑爱丽丝", value: "dm179/cn/actresses/%E4%B8%83%E6%BF%91%E7%88%B1%E4%B8%BD%E4%B8%9D" },
+    { title: "鹫尾芽衣", value: "dm179/cn/actresses/%E9%B9%AB%E5%B0%BE%E8%8A%BD%E8%A1%A3" },
+    { title: "博多彩叶", value: "dm179/cn/actresses/%E5%8D%9A%E5%A4%9A%E5%BD%A9%E5%8F%B6" },
+    { title: "石川澪", value: "dm179/cn/actresses/%E7%9F%B3%E5%B7%9D%E6%BE%AA" },
+    { title: "白上咲花", value: "dm179/cn/actresses/%E7%99%BD%E4%B8%8A%E5%92%B2%E8%8A%B1" },
+    { title: "田野忧", value: "dm179/cn/actresses/%E7%94%B0%E9%87%8E%E5%BF%A7" },
+    { title: "未步なな", value: "dm179/cn/actresses/%E6%9C%AA%E6%AD%A5%E3%81%AA%E3%81%AA" },
+    { title: "村上悠华", value: "dm179/cn/actresses/%E6%9D%91%E4%B8%8A%E6%82%A0%E5%8D%8E" },
+    { title: "三田真铃", value: "dm179/cn/actresses/%E4%B8%89%E7%94%B0%E7%9C%9F%E9%93%83" },
+    { title: "枫ふうあ", value: "dm179/cn/actresses/%E6%A1%AB%E3%81%B5%E3%81%86%E3%81%82" },
+    { title: "三上悠亚", value: "dm179/cn/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9A" },
+    { title: "榊原萌", value: "dm179/cn/actresses/%E6%A6%8A%E5%8E%9F%E8%90%8C" },
+    { title: "彩月七绪", value: "dm179/cn/actresses/%E5%BD%A9%E6%9C%88%E4%B8%83%E7%BB%AA" },
+    { title: "神宫寺奈绪", value: "dm179/cn/actresses/%E7%A5%9E%E5%AE%AB%E5%AF%BA%E5%A5%88%E7%BB%AA" },
+    { title: "有村のぞみ", value: "dm179/cn/actresses/%E6%9C%89%E6%9D%91%E3%81%AE%E3%81%9E%E3%81%BF" }
+];
+
+const GENRES_ENDPOINTS = [
+    { title: "高清", value: "dm96/cn/genres/%E9%AB%98%E6%B8%85" },
+    { title: "独家", value: "dm139/cn/genres/%E7%8B%AC%E5%AE%B6" },
+    { title: "中出", value: "dm130/cn/genres/%E4%B8%AD%E5%87%BA" },
+    { title: "单体作品", value: "dm122/cn/genres/%E5%8D%95%E4%BD%93%E4%BD%9C%E5%93%81" },
+    { title: "巨乳", value: "dm120/cn/genres/%E5%B7%A8%E4%B9%B3" },
+    { title: "人妻", value: "dm77/cn/genres/%E4%BA%BA%E5%A6%BB" },
+    { title: "熟女", value: "dm118/cn/genres/%E7%86%9F%E5%A5%B3" },
+    { title: "素人", value: "dm123/cn/genres/%E7%B4%A0%E4%BA%BA" },
+    { title: "美少女", value: "dm437/cn/genres/%E7%BE%8E%E5%B0%91%E5%A5%B3" },
+    { title: "口交", value: "dm1301/cn/genres/%E5%8F%A3%E4%BA%A4" },
+    { title: "多人运动", value: "dm321/cn/genres/%E5%A4%9A%E4%BA%BA%E8%BF%90%E5%8A%A8" },
+    { title: "薄格", value: "dm76/cn/genres/%E8%96%84%E6%A0%BC" },
+    { title: "骑乘", value: "dm486/cn/genres/%E9%AA%91%E4%B9%98" },
+    { title: "痴女", value: "dm313/cn/genres/%E7%97%B4%E5%A5%B3" },
+    { title: "4小时以上", value: "dm738/cn/genres/4%E5%B0%8F%E6%97%B6%E4%BB%A5%E4%B8%8A" },
+    { title: "女高中生", value: "dm4448/cn/genres/%E5%A5%B3%E9%AB%98%E4%B8%AD%E7%94%9F" },
+    { title: "潮吹", value: "dm161/cn/genres/%E6%BD%AE%E5%90%B9" },
+    { title: "苗条", value: "dm757/cn/genres/%E8%8B%97%E6%9D%A1" },
+    { title: "自拍", value: "dm978/cn/genres/%E8%87%AA%E6%8B%8D" },
+    { title: "合集", value: "dm784/cn/genres/%E5%90%88%E9%9B%86" },
+    { title: "乳交", value: "dm594/cn/genres/%E4%B9%B3%E4%BA%A4" },
+    { title: "恋物癖", value: "dm117/cn/genres/%E6%81%8B%E7%89%A9%E7%99%96" },
+    { title: "美乳", value: "dm215/cn/genres/%E7%BE%8E%E4%B9%B3" },
+    { title: "NTR", value: "dm736/cn/genres/NTR" },
+    { title: "企划", value: "dm341/cn/genres/%E4%BC%81%E5%88%92" },
+    { title: "乱伦", value: "dm56/cn/genres/%E4%B9%B1%E4%BC%A6" },
+    { title: "搭讪", value: "dm292/cn/genres/%E6%90%AD%E8%AE%AA" },
+    { title: "颜射", value: "dm319/cn/genres/%E9%A2%9C%E5%B0%84" },
+    { title: "淫乱", value: "dm903/cn/genres/%E6%B7%AB%E4%B9%B1" },
+    { title: "偷拍", value: "dm516/cn/genres/%E5%81%B7%E6%8B%8D" },
+    { title: "剧情", value: "dm98/cn/genres/%E5%89%A7%E6%83%85" },
+    { title: "自慰", value: "dm7606/cn/genres/%E8%87%AA%E6%85%B0" },
+    { title: "4K", value: "dm55/cn/genres/4K" },
+    { title: "手淫", value: "dm94/cn/genres/%E6%89%8B%E6%B7%AB" },
+    { title: "姐姐", value: "dm793/cn/genres/%E5%A7%90%E5%A7%90" },
+    { title: "羞辱", value: "dm161/cn/genres/%E7%BE%9E%E8%BE%B1" }
+];
+
+const MAKERS_ENDPOINTS = [
+    { title: "Moody's", value: "dm825/cn/makers/Moody%27s" },
+    { title: "Prestige", value: "dm825/cn/makers/Prestige" },
+    { title: "Madonna", value: "dm825/cn/makers/Madonna" },
+    { title: "S1", value: "dm825/cn/makers/S1" },
+    { title: "SOD", value: "dm825/cn/makers/SOD" },
+    { title: "IdeaPocket", value: "dm825/cn/makers/IdeaPocket" },
+    { title: "Attackers", value: "dm825/cn/makers/Attackers" },
+    { title: "Glory Quest", value: "dm825/cn/makers/Glory%20Quest" },
+    { title: "ビッグモーカル", value: "dm825/cn/makers/%E3%83%93%E3%83%83%E3%82%B0%E3%83%A2%E3%83%BC%E3%82%AB%E3%83%AB" },
+    { title: "NATURAL HIGH", value: "dm825/cn/makers/NATURAL%20HIGH" },
+    { title: "Wanz Factory", value: "dm825/cn/makers/Wanz%20Factory" },
+    { title: "Takara Visual", value: "dm825/cn/makers/Takara%20Visual" },
+    { title: "Fc2", value: "dm825/cn/makers/Fc2" },
+    { title: "Premium", value: "dm825/cn/makers/Premium" },
+    { title: "Fitch", value: "dm825/cn/makers/Fitch" },
+    { title: "VENUS", value: "dm825/cn/makers/VENUS" },
+    { title: "DEEP'S", value: "dm825/cn/makers/DEEP%27S" },
+    { title: "本中", value: "dm825/cn/makers/%E6%9C%AC%E4%B8%AD" },
+    { title: "Hunter", value: "dm825/cn/makers/Hunter" },
+    { title: "溜池ゴロー", value: "dm825/cn/makers/%E6%BA%9C%E6%B1%A0%E3%82%B4%E3%83%AD%E3%83%BC" },
+    { title: "TMA", value: "dm825/cn/makers/TMA" },
+    { title: "センタービレッジ", value: "dm825/cn/makers/%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC%E3%83%93%E3%83%AC%E3%83%83%E3%82%B8" },
+    { title: "Das", value: "dm825/cn/makers/Das" },
+    { title: "Waap Entertainment", value: "dm825/cn/makers/Waap%20Entertainment" },
+    { title: "Crystal-Eizou", value: "dm825/cn/makers/Crystal-Eizou" },
+    { title: "kawaii", value: "dm825/cn/makers/kawaii" },
+    { title: "ゴーゴーズ", value: "dm825/cn/makers/%E3%82%B4%E3%83%BC%E3%82%B4%E3%83%BC%E3%82%BA" },
+    { title: "プラネットプラス", value: "dm825/cn/makers/%E3%83%97%E3%83%A9%E3%83%8D%E3%83%83%E3%83%88%E3%83%97%E3%83%A9%E3%82%B9" },
+    { title: "OPPAI", value: "dm825/cn/makers/OPPAI" },
+    { title: "STAR PARADISE", value: "dm825/cn/makers/STAR%20PARADISE" },
+    { title: "E-BODY", value: "dm825/cn/makers/E-BODY" },
+    { title: "セレブの友", value: "dm825/cn/makers/%E3%82%BB%E3%83%AC%E3%83%96%E3%81%AE%E5%8F%8B" },
+    { title: "ドグマ", value: "dm825/cn/makers/%E3%83%89%E3%82%B0%E3%83%9E" },
+    { title: "Alice Japan", value: "dm825/cn/makers/Alice%20Japan" },
+    { title: "KM Produce", value: "dm825/cn/makers/KM%20Produce" },
+    { title: "桃太郎映像出版", value: "dm825/cn/makers/%E6%A1%83%E5%A4%AA%E9%83%8E%E6%98%A0%E5%83%8F%E5%87%BA%E7%89%88" }
+];
+
+function buildListUrl(endpoint, page = 1, filters = "", sort = "") {
+    const params = [];
+    if (filters) params.push(`filters=${encodeURIComponent(filters)}`);
+    if (sort) params.push(`sort=${encodeURIComponent(sort)}`);
+    if (page > 1) params.push(`page=${page}`);
+    return `${BASE_URL}/${endpoint}${params.length ? `?${params.join("&")}` : ""}`;
+}
+
+function extractVideoId(href) {
+    const slug = href.split('/').pop() || "";
+    return slug.replace(/-(uncensored-leak|chinese-subtitle)$/, "").toUpperCase();
+}
+
+function normalizeHref(href) {
+    if (!href) return "";
+    if (href.startsWith("http")) return href;
+    return `${BASE_URL}${href.startsWith("/") ? href : `/${href}`}`;
+}
+
+function cleanText(text) {
+    return (text || "").replace(/\s+/g, " ").trim();
+}
+
 function parseVideoList(html) {
-    if (!html || html.includes("Just a moment")) return [];
+    if (!html || html.includes("Just a moment")) {
+        return [{ id: "err_cf", type: "text", title: "被 Cloudflare 拦截", subTitle: "请稍后重试" }];
+    }
 
     const $ = Widget.html.load(html);
     const results = [];
 
     $("div.group").each((i, el) => {
         const $el = $(el);
-        // 兼容一下部分页面结构的微调
-        let $link = $el.find("a.text-secondary");
-        if ($link.length === 0) $link = $el.find("a").first();
-        
+        const $link = $el.find("a.text-secondary");
         const href = $link.attr("href");
-        
-        if (href && href.includes('missav')) {
-            let title = $link.text().trim();
+
+        if (href) {
+            const title = $link.text().trim();
             const $img = $el.find("img");
-            
-            // 提取图片，优先拿 data-src (懒加载)，其次拿 src
-            let imgSrc = $img.attr("data-src") || $img.attr("src") || "";
-            // 如果只有 alt 没有 title 的情况补全标题
-            if (!title) title = $img.attr("alt") || "未知标题";
-            
-            // 🟢 修复：自动补全协议头，防止 // 这种相对路径导致 App 无法加载
-            if (imgSrc && imgSrc.startsWith("//")) {
-                imgSrc = "https:" + imgSrc;
-            } else if (imgSrc && imgSrc.startsWith("/")) {
-                imgSrc = BASE_URL + imgSrc;
-            }
+            const imgSrc = $img.attr("data-src") || $img.attr("src");
+            const duration = $el.find(".absolute.bottom-1.right-1").text().trim();
+            const videoId = extractVideoId(href);
+            const coverUrl = videoId ? `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` : imgSrc;
 
-            const duration = $el.find(".absolute.bottom-1.right-1, .absolute.bottom-2.right-2").text().trim();
-
-            const videoId = href.split('/').pop().replace(/-uncensored-leak|-chinese-subtitle/g, '').toUpperCase();
-            
+            const finalCover = coverUrl || imgSrc || "";
             results.push({
-                id: href,         
-                type: "url",    
+                id: href,
+                type: "link",
+                title,
+                coverUrl: finalCover,
+                backdropPath: finalCover,
+                posterPath: finalCover,
+                image: finalCover,
                 link: href,
-                mediaType: "movie",
-                title: title,
-                // 🟢 核心修复：把 coverUrl 换成标准的 posterPath 和 backdropPath
-                posterPath: imgSrc, 
-                backdropPath: imgSrc,
-                description: `时长: ${duration} | 番号: ${videoId}`,
+                description: `时长: ${duration}${videoId ? ` | 番号: ${videoId}` : ""}`,
                 customHeaders: HEADERS
             });
         }
     });
-    return results;
+
+    return results.length > 0 ? results : [{ id: "empty", type: "text", title: "没有找到相关视频" }];
 }
 
-// 模块浏览
-async function loadList(params = {}) {
-    const { page = 1, category = "dm588/cn/release" } = params;
-    let url = `${BASE_URL}/${category}`;
-    if (page > 1) url += `?page=${page}`;
+function buildStaticEntries(list, description) {
+    return list.map(([title, url]) => ({
+        id: url,
+        type: "link",
+        title,
+        link: url,
+        coverUrl: "",
+        description,
+        customHeaders: HEADERS
+    }));
+}
+
+function buildStaticActressEntries() {
+    return ACTRESS_RANKING.map((item) => {
+        const href = `${BASE_URL}/dm179/cn/actresses/${encodeURIComponent(item.value)}`;
+        return {
+            id: href,
+            type: "link",
+            title: item.title,
+            link: href,
+            coverUrl: "",
+            description: "女优排行",
+            customHeaders: HEADERS
+        };
+    });
+}
+
+async function loadCategoryList(params = {}, endpoint = "") {
+    const { page = 1, category = "", sort = "", filters = "" } = params;
+    const targetEndpoint = endpoint || category;
+    const url = buildListUrl(targetEndpoint, page, filters, sort);
 
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        const list = parseVideoList(res.data);
-        return list.length > 0 ? list : [{ id: "empty", type: "text", title: "未找到内容" }];
+        return parseVideoList(res.data);
     } catch (e) {
         return [{ id: "err", type: "text", title: "加载失败", subTitle: e.message }];
     }
 }
 
-// 全局搜索触发的函数
-async function searchList(params = {}) {
-    const keyword = (params.keyword || params.query || "").trim();
-    if (!keyword) return [{ id: "tip", type: "text", title: "请输入关键词" }];
+async function loadList(params = {}) {
+    const { endpoint = "dm632/cn/release" } = params;
+    return loadCategoryList(params, endpoint);
+}
 
-    const page = params.page || 1;
+async function loadActresses() {
+    return buildStaticActressEntries();
+}
+
+async function loadGenresStatic() {
+    return buildStaticEntries(GENRES_STATIC, "类型分类");
+}
+
+async function loadMakersStatic() {
+    return buildStaticEntries(MAKERS_STATIC, "发行商分类");
+}
+
+async function searchList(params = {}) {
+    const { page = 1, keyword } = params;
+
+    if (!keyword) {
+        return [{ id: "tip", type: "text", title: "请输入关键词开始搜索" }];
+    }
+
     let url = `${BASE_URL}/cn/search/${encodeURIComponent(keyword)}`;
     if (page > 1) url += `?page=${page}`;
 
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        const list = parseVideoList(res.data);
-        return list.length > 0 ? list : [{ id: "empty", type: "text", title: "未搜索到相关番号" }];
+        return parseVideoList(res.data);
     } catch (e) {
-        return [{ id: "err", type: "text", title: "搜索请求失败", subTitle: e.message }];
+        return [{ id: "err", type: "text", title: "搜索失败", subTitle: e.message }];
     }
 }
 
-// 点击搜索结果后的解析播放逻辑
-async function loadDetail(id) {
-    if (!id.startsWith('http')) return null;
+async function searchGlobal(params = {}) {
+    const { page = 1, keyword } = params;
+
+    if (!keyword) {
+        return [{ id: "tip", type: "text", title: "请输入关键词开始全局搜索" }];
+    }
+
+    const query = encodeURIComponent(keyword);
+    let url = `${BASE_URL}/cn/search/${query}`;
+    if (page > 1) url += `?page=${page}`;
 
     try {
-        const res = await Widget.http.get(id, { headers: HEADERS });
+        const res = await Widget.http.get(url, { headers: HEADERS });
+        return parseVideoList(res.data);
+    } catch (e) {
+        return [{ id: "err", type: "text", title: "全局搜索失败", subTitle: e.message }];
+    }
+}
+
+async function loadDetail(link) {
+    try {
+        const res = await Widget.http.get(link, { headers: HEADERS });
         const html = res.data;
         const $ = Widget.html.load(html);
-        
+
         let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         let videoUrl = "";
-        
-        // 核心解密嗅探
+
         $('script').each((i, el) => {
             const scriptContent = $(el).html() || "";
+
             if (scriptContent.includes('surrit.com') && scriptContent.includes('.m3u8')) {
                 const matches = scriptContent.match(/https:\/\/surrit\.com\/[a-f0-9\-]+\/[^"'\s]*\.m3u8/g);
                 if (matches && matches.length > 0) {
                     videoUrl = matches[0];
-                    return false; 
+                    return false;
                 }
             }
+
             if (!videoUrl && scriptContent.includes('eval(function')) {
                 const uuidMatches = scriptContent.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
                 if (uuidMatches && uuidMatches.length > 0) {
                     videoUrl = `https://surrit.com/${uuidMatches[0]}/playlist.m3u8`;
-                    return false; 
+                    return false;
                 }
             }
         });
 
+        if (!videoUrl) {
+            const matchSimple = html.match(/source\s*=\s*['"]([^'"]+)['"]/);
+            if (matchSimple) videoUrl = matchSimple[1];
+        }
+
         if (videoUrl) {
-            return {
-                id: id,
-                type: "detail", 
-                mediaType: "movie",
+            return [{
+                id: link,
+                type: "video",
                 title: title,
                 videoUrl: videoUrl,
                 playerType: "system",
-                link: id,
                 customHeaders: {
                     "Referer": "https://missav.ai/",
-                    "User-Agent": HEADERS["User-Agent"]
+                    "User-Agent": HEADERS["User-Agent"],
+                    "Origin": "https://missav.ai"
                 }
-            };
+            }];
         } else {
-            return { id: "err", type: "text", title: "解析失败", description: "无法提取视频流" };
+            return [{ id: "err", type: "text", title: "解析失败", subTitle: "未找到播放地址" }];
         }
+
     } catch (e) {
-        return { id: "err", type: "text", title: "请求失败", description: e.message };
+        return [{ id: "err", type: "text", title: "请求错误", subTitle: e.message }];
     }
 }
