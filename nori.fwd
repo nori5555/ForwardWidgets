@@ -1,0 +1,34 @@
+{
+  "title": "nori的模块合集",
+  "description": "包含了 thunder、miss 和 hanime 三个实用组件",
+  "icon": "https://github.com/nori.png",
+  "widgets": [
+    {
+      "id": "nori5555.widget.thunder",
+      "title": "Thunder 模块",
+      "description": "Thunder",
+      "requiredVersion": "0.0.1",
+      "version": "1.0.0",
+      "author": "nori5555",
+      "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/thunder.js"
+    },
+    {
+      "id": "nori5555.widget.miss",
+      "title": "MissAV",
+      "description": "Miss",
+      "requiredVersion": "0.0.1",
+      "version": "1.0.0",
+      "author": "nori5555",
+      "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/miss.js"
+    },
+    {
+      "id": "nori5555.widget.hanime",
+      "title": "Hanime",
+      "description": "Hanime",
+      "requiredVersion": "0.0.1",
+      "version": "1.0.0",
+      "author": "nori5555",
+      "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/hanime.js"
+    }
+  ]
+}
