@@ -1,7 +1,7 @@
 {
   "title": "nori的模块合集",
   "description": "包含了 thunder、miss 和 hanime 三个实用组件",
-  "icon": "https://github.com/nori.png",
+  "icon": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/xiaohei.PNG",
   "widgets": [
     {
       "id": "nori5555.widget.thunder",
