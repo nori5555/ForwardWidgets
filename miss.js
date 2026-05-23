@@ -116,7 +116,25 @@ WidgetMetadata = {
                     { title: "未步なな", value: "dm179/cn/actresses/%E6%9C%AA%E6%AD%A5%E3%81%AA%E3%81%AA" },
                     { title: "村上悠华", value: "dm179/cn/actresses/%E6%9D%91%E4%B8%8A%E6%82%A0%E5%8D%8E" },
                     { title: "三田真铃", value: "dm179/cn/actresses/%E4%B8%89%E7%94%B0%E7%9C%9F%E9%93%83" },
-                    { title: "枫ふうあ", value: "dm179/cn/actresses/%E6%A1%AB%E3%81%B5%E3%81%86%E3%81%82" },
+                    { title: "八掛うみ", value: "dm179/cn/actresses/%E5%85%AB%E6%8E%9B%E3%81%86%E3%81%BF" },
+                    { title: "初美なのか", value: "dm179/cn/actresses/%E5%88%9D%E7%BE%8E%E3%81%AA%E3%81%AE%E3%81%8B" },
+                    { title: "宮下玲奈", value: "dm179/cn/actresses/%E5%AE%AE%E4%B8%8B%E7%8E%B2%E5%A5%88" },
+                    { title: "新有菜", value: "dm58/actresses/%E6%A9%8B%E6%9C%AC%E6%9C%89%E8%8F%9C%20%28%E6%96%B0%E6%9C%89%E8%8F%9C%29" },
+                    { title: "新木希空", value: "dm179/cn/actresses/%E6%96%B0%E6%9C%A8%E5%B8%8C%E7%A9%BA" },
+                    { title: "明里つむぎ", value: "dm179/cn/actresses/%E6%98%8E%E9%87%8C%E3%81%A4%E3%82%80%E3%81%8E" },
+                    { title: "本庄鈴", value: "dm179/cn/actresses/%E6%9C%AC%E5%BA%84%E9%88%B4" },
+                    { title: "桃乃木かな", value: "dm179/cn/actresses/%E6%A1%83%E4%B9%83%E6%9C%A8%E3%81%8B%E3%81%AA" },
+                    { title: "桜空もも", value: "dm179/cn/actresses/%E6%A1%9C%E7%A9%BA%E3%82%82%E3%82%82" },
+                    { title: "楓ふうあ", value: "dm63/actresses/%E6%A5%93%E3%81%B5%E3%81%86%E3%81%82" },
+                    { title: "楓可憐", value: "dm38/actresses/%E6%A5%93%E5%8F%AF%E6%86%90%20%28%E7%94%B0%E4%B8%AD%E6%AA%B8%E6%AA%AC%29" },
+                    { title: "涼森れむ", value: "dm179/cn/actresses/%E6%B6%BC%E6%A3%AE%E3%82%8C%E3%82%80" },
+                    { title: "瀧本雫葉", value: "dm179/cn/actresses/%E7%80%A7%E6%9C%AC%E9%9B%AB%E8%91%89" },
+                    { title: "田中レモン", value: "dm179/cn/actresses/%E7%94%B0%E4%B8%AD%E3%83%AC%E3%83%A2%E3%83%B3" },
+                    { title: "相沢みなみ", value: "dm179/cn/actresses/%E7%9B%B8%E6%B2%A2%E3%81%BF%E3%81%AA%E3%81%BF" },
+                    { title: "神木麗", value: "dm179/cn/actresses/%E7%A5%9E%E6%9C%A8%E9%BA%97" },
+                    { title: "美ノ嶋めぐり", value: "dm179/cn/actresses/%E7%BE%8E%E3%83%8E%E5%B6%8B%E3%82%81%E3%81%90%E3%82%8A" },
+                    { title: "野々浦暖", value: "dm179/cn/actresses/%E9%87%8E%E3%80%85%E6%B5%A6%E6%9A%96" },
+                    { title: "青空ひかり", value: "dm179/cn/actresses/%E9%9D%92%E7%A9%BA%E3%81%B2%E3%81%8B%E3%82%8A" },
                     { title: "三上悠亚", value: "dm179/cn/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9A" },
                     { title: "榊原萌", value: "dm179/cn/actresses/%E6%A6%8A%E5%8E%9F%E8%90%8C" },
                     { title: "彩月七绪", value: "dm179/cn/actresses/%E5%BD%A9%E6%9C%88%E4%B8%83%E7%BB%AA" },
@@ -229,7 +247,6 @@ WidgetMetadata = {
     ],
     search: {
         title: "🌐 全局搜索",
-        description: "跨模块站内搜索，覆盖中文字幕、日本AV、素人、无码影片、亚洲AV、女优、类型与发行商",
         functionName: "searchGlobal",
         params: [
             { name: "keyword", title: "关键词", type: "input", description: "搜索的关键词", value: "" },
@@ -270,7 +287,28 @@ const ACTRESS_ENDPOINTS = [
     { title: "未步なな", value: "dm179/cn/actresses/%E6%9C%AA%E6%AD%A5%E3%81%AA%E3%81%AA" },
     { title: "村上悠华", value: "dm179/cn/actresses/%E6%9D%91%E4%B8%8A%E6%82%A0%E5%8D%8E" },
     { title: "三田真铃", value: "dm179/cn/actresses/%E4%B8%89%E7%94%B0%E7%9C%9F%E9%93%83" },
-    { title: "枫ふうあ", value: "dm179/cn/actresses/%E6%A1%AB%E3%81%B5%E3%81%86%E3%81%82" },
+    { title: "八挂うみ", value: "dm179/cn/actresses/%E5%85%AB%E6%8E%9B%E3%81%86%E3%81%BF" },
+    { title: "初美なのか", value: "dm179/cn/actresses/%E5%88%9D%E7%BE%8E%E3%81%AA%E3%81%AE%E3%81%8B" },
+    { title: "宫下玲奈", value: "dm179/cn/actresses/%E5%AE%AE%E4%B8%8B%E7%8E%B2%E5%A5%88" },
+    { title: "新有菜", value: "dm58/actresses/%E6%A9%8B%E6%9C%AC%E6%9C%89%E8%8F%9C%20%28%E6%96%B0%E6%9C%89%E8%8F%9C%29" },
+    { title: "新木希空", value: "dm179/cn/actresses/%E6%96%B0%E6%9C%A8%E5%B8%8C%E7%A9%BA" },
+    { title: "明里つむぎ", value: "dm179/cn/actresses/%E6%98%8E%E9%87%8C%E3%81%A4%E3%82%80%E3%81%8E" },
+    { title: "小野六花", value: "dm179/cn/actresses/%E5%B0%8F%E9%87%8E%E5%85%AD%E8%8A%B1" },
+    { title: "宇都宫紫苑", value: "dm179/cn/actresses/%E5%AE%87%E9%83%BD%E5%AE%AE%E7%B4%AB%E8%8B%91" },
+    { title: "小宵こなん", value: "dm179/cn/actresses/%E5%B0%8F%E5%AE%B5%E3%81%93%E3%81%AA%E3%82%93" },
+    { title: "本庄鈴", value: "dm179/cn/actresses/%E6%9C%AC%E5%BA%84%E9%88%B4" },
+    { title: "桃乃木かな", value: "dm179/cn/actresses/%E6%A1%83%E4%B9%83%E6%9C%A8%E3%81%8B%E3%81%AA" },
+    { title: "桜空もも", value: "dm179/cn/actresses/%E6%A1%9C%E7%A9%BA%E3%82%82%E3%82%82" },
+    { title: "楓ふうあ", value: "dm179/cn/actresses/%E6%A1%AB%E3%81%B5%E3%81%86%E3%81%82" },
+    { title: "楓カレン", value: "dm179/cn/actresses/%E6%A5%93%E3%82%AB%E3%83%AC%E3%83%B3" },
+    { title: "涼森れむ", value: "dm179/cn/actresses/%E6%B6%BC%E6%A3%AE%E3%82%8C%E3%82%80" },
+    { title: "瀧本雫葉", value: "dm179/cn/actresses/%E7%80%A7%E6%9C%AC%E9%9B%AB%E8%91%89" },
+    { title: "田中レモン", value: "dm179/cn/actresses/%E7%94%B0%E4%B8%AD%E3%83%AC%E3%83%A2%E3%83%B3" },
+    { title: "相沢みなみ", value: "dm179/cn/actresses/%E7%9B%B8%E6%B2%A2%E3%81%BF%E3%81%AA%E3%81%BF" },
+    { title: "神木麗", value: "dm179/cn/actresses/%E7%A5%9E%E6%9C%A8%E9%BA%97" },
+    { title: "美ノ嶋めぐり", value: "dm179/cn/actresses/%E7%BE%8E%E3%83%8E%E5%B6%8B%E3%82%81%E3%81%90%E3%82%8A" },
+    { title: "野々浦暖", value: "dm179/cn/actresses/%E9%87%8E%E3%80%85%E6%B5%A6%E6%9A%96" },
+    { title: "青空ひかり", value: "dm179/cn/actresses/%E9%9D%92%E7%A9%BA%E3%81%B2%E3%81%8B%E3%82%8A" },
     { title: "三上悠亚", value: "dm179/cn/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9A" },
     { title: "榊原萌", value: "dm179/cn/actresses/%E6%A6%8A%E5%8E%9F%E8%90%8C" },
     { title: "彩月七绪", value: "dm179/cn/actresses/%E5%BD%A9%E6%9C%88%E4%B8%83%E7%BB%AA" },
@@ -356,6 +394,9 @@ const MAKERS_ENDPOINTS = [
     { title: "桃太郎映像出版", value: "dm825/cn/makers/%E6%A1%83%E5%A4%AA%E9%83%8E%E6%98%A0%E5%83%8F%E5%87%BA%E7%89%88" }
 ];
 
+const GENRES_STATIC = GENRES_ENDPOINTS;
+const MAKERS_STATIC = MAKERS_ENDPOINTS;
+
 function buildListUrl(endpoint, page = 1, filters = "", sort = "") {
     const params = [];
     if (filters) params.push(`filters=${encodeURIComponent(filters)}`);
@@ -369,17 +410,15 @@ function extractVideoId(href) {
     return slug.replace(/-(uncensored-leak|chinese-subtitle)$/, "").toUpperCase();
 }
 
-function normalizeHref(href) {
-    if (!href) return "";
-    if (href.startsWith("http")) return href;
-    return `${BASE_URL}${href.startsWith("/") ? href : `/${href}`}`;
+function resolveUrl(path) {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function cleanText(text) {
-    return (text || "").replace(/\s+/g, " ").trim();
-}
+function parseVideoList(html, options = {}) {
+    const { includeImageFields = false } = options;
 
-function parseVideoList(html) {
     if (!html || html.includes("Just a moment")) {
         return [{ id: "err_cf", type: "text", title: "被 Cloudflare 拦截", subTitle: "请稍后重试" }];
     }
@@ -395,24 +434,29 @@ function parseVideoList(html) {
         if (href) {
             const title = $link.text().trim();
             const $img = $el.find("img");
-            const imgSrc = $img.attr("data-src") || $img.attr("src");
+            const imgSrc = $img.attr("data-src") || $img.attr("src") || "";
             const duration = $el.find(".absolute.bottom-1.right-1").text().trim();
             const videoId = extractVideoId(href);
             const coverUrl = videoId ? `https://fourhoi.com/${videoId.toLowerCase()}/cover-t.jpg` : imgSrc;
+            const finalCover = coverUrl || imgSrc;
 
-            const finalCover = coverUrl || imgSrc || "";
-            results.push({
+            const item = {
                 id: href,
                 type: "link",
                 title,
                 coverUrl: finalCover,
-                backdropPath: finalCover,
-                posterPath: finalCover,
-                image: finalCover,
                 link: href,
                 description: `时长: ${duration}${videoId ? ` | 番号: ${videoId}` : ""}`,
                 customHeaders: HEADERS
-            });
+            };
+
+            if (includeImageFields) {
+                item.backdropPath = finalCover;
+                item.posterPath = finalCover;
+                item.image = finalCover;
+            }
+
+            results.push(item);
         }
     });
 
@@ -420,11 +464,11 @@ function parseVideoList(html) {
 }
 
 function buildStaticEntries(list, description) {
-    return list.map(([title, url]) => ({
-        id: url,
+    return list.map((item) => ({
+        id: item.value,
         type: "link",
-        title,
-        link: url,
+        title: item.title,
+        link: resolveUrl(item.value),
         coverUrl: "",
         description,
         customHeaders: HEADERS
@@ -432,23 +476,20 @@ function buildStaticEntries(list, description) {
 }
 
 function buildStaticActressEntries() {
-    return ACTRESS_RANKING.map((item) => {
-        const href = `${BASE_URL}/dm179/cn/actresses/${encodeURIComponent(item.value)}`;
-        return {
-            id: href,
-            type: "link",
-            title: item.title,
-            link: href,
-            coverUrl: "",
-            description: "女优排行",
-            customHeaders: HEADERS
-        };
-    });
+    return ACTRESS_ENDPOINTS.map((item) => ({
+        id: item.value,
+        type: "link",
+        title: item.title,
+        link: resolveUrl(item.value),
+        coverUrl: "",
+        description: "女优排行",
+        customHeaders: HEADERS
+    }));
 }
 
-async function loadCategoryList(params = {}, endpoint = "") {
-    const { page = 1, category = "", sort = "", filters = "" } = params;
-    const targetEndpoint = endpoint || category;
+async function loadList(params = {}) {
+    const { endpoint = "dm632/cn/release", page = 1, sort = "", filters = "", category = "" } = params;
+    const targetEndpoint = endpoint || category || "dm632/cn/release";
     const url = buildListUrl(targetEndpoint, page, filters, sort);
 
     try {
@@ -457,11 +498,6 @@ async function loadCategoryList(params = {}, endpoint = "") {
     } catch (e) {
         return [{ id: "err", type: "text", title: "加载失败", subTitle: e.message }];
     }
-}
-
-async function loadList(params = {}) {
-    const { endpoint = "dm632/cn/release" } = params;
-    return loadCategoryList(params, endpoint);
 }
 
 async function loadActresses() {
@@ -507,7 +543,7 @@ async function searchGlobal(params = {}) {
 
     try {
         const res = await Widget.http.get(url, { headers: HEADERS });
-        return parseVideoList(res.data);
+        return parseVideoList(res.data, { includeImageFields: true });
     } catch (e) {
         return [{ id: "err", type: "text", title: "全局搜索失败", subTitle: e.message }];
     }
@@ -519,7 +555,7 @@ async function loadDetail(link) {
         const html = res.data;
         const $ = Widget.html.load(html);
 
-        let title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
+        const title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         let videoUrl = "";
 
         $('script').each((i, el) => {
