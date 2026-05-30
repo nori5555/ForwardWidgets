@@ -3,7 +3,7 @@ WidgetMetadata = {
     title: "MissAV_ovo",
     author: "𝙈𝙖𝙠𝙠𝙖𝙋𝙖𝙠𝙠𝙖 / EL",
     description: "MissAV 视频聚合模块，支持中文字幕、日本AV、素人、无码影片、亚洲AV、女优、类型、发行商与搜索",
-    version: "2.3.1",
+    version: "2.4.0",
     requiredVersion: "0.0.1",
     site: "https://missav.ai",
     modules: [
@@ -405,6 +405,32 @@ function buildListUrl(endpoint, page = 1, filters = "", sort = "") {
     return `${BASE_URL}/${endpoint}${params.length ? `?${params.join("&")}` : ""}`;
 }
 
+
+function buildJavTrailersUrl(title) {
+    const code = buildJavTrailersId(title);
+    if (!code) return "";
+    const first = code[0];
+    const folder = code.slice(0, 3);
+    return `https://media.javtrailers.com/hlsvideo/freepv/${first}/${folder}/${code}/${code}mmb.m3u8`;
+}
+
+function buildTrailerCoverUrl(title) {
+    const raw = String(title || "").toUpperCase();
+    const match = raw.match(/\b([A-Z0-9]+)-?(\d{2,5})\b/);
+    if (!match) return "";
+
+    const prefix = match[1].toLowerCase();
+    const number = match[2].padStart(3, "0");
+    const code = `${prefix}${match[2].padStart(5, "0")}`;
+
+    const mgstagePrefixes = new Set(["ABF", "ABW", "IPX", "JUFE", "MEYD", "SSNI", "STARS", "PPPD", "WANZ", "EBOD", "JUL", "SHKD", "MIDE", "S1", "SQTE", "SNOS", "OFJE"]);
+    if (mgstagePrefixes.has(match[1])) {
+        return `https://image.mgstage.com/images/prestige/${prefix}/${number}/pb_e_${prefix}-${number}.jpg`;
+    }
+
+    return `https://pics.dmm.co.jp/digital/video/${code}/${code}pl.jpg`;
+}
+
 function extractVideoId(href) {
     const slug = href.split('/').pop() || "";
     return slug.replace(/-(uncensored-leak|chinese-subtitle)$/, "").toUpperCase();
@@ -414,6 +440,46 @@ function resolveUrl(path) {
     if (!path) return "";
     if (path.startsWith("http")) return path;
     return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function normalizeText(text) {
+    return (text || "").replace(/\s+/g, " ").trim();
+}
+
+function extractLabelItems($, labelText) {
+    const normalizedLabel = normalizeText(labelText);
+    const items = [];
+    const seen = new Set();
+
+    $("a").each((_, el) => {
+        const $el = $(el);
+        const text = normalizeText($el.text());
+        const href = $el.attr("href") || "";
+
+        if (!text || !href) return;
+        if (seen.has(`${text}|${href}`)) return;
+
+        const isMatch = text === normalizedLabel || text.includes(normalizedLabel);
+        if (!isMatch) return;
+
+        seen.add(`${text}|${href}`);
+        items.push({
+            title: text,
+            link: resolveUrl(href)
+        });
+    });
+
+    return items;
+}
+
+function extractActorAvatar($el) {
+    return $el.find("img").attr("data-src") ||
+        $el.find("img").attr("src") ||
+        $el.find("img").attr("data-lazy-src") ||
+        $el.closest("div,li,figure,section").find("img").attr("data-src") ||
+        $el.closest("div,li,figure,section").find("img").attr("src") ||
+        $el.closest("div,li,figure,section").find("img").attr("data-lazy-src") ||
+        "";
 }
 
 function parseVideoList(html, options = {}) {
@@ -475,6 +541,15 @@ function buildStaticEntries(list, description) {
     }));
 }
 
+function buildJavTrailersId(text) {
+    const raw = String(text || "").toUpperCase();
+    const match = raw.match(/\b([A-Z0-9]+)-?(\d{2,5})\b/);
+    if (!match) return "";
+    const prefix = match[1].toLowerCase();
+    const num = match[2].padStart(5, "0");
+    return `${prefix}${num}`;
+}
+
 function buildStaticActressEntries() {
     return ACTRESS_ENDPOINTS.map((item) => ({
         id: item.value,
@@ -488,12 +563,22 @@ function buildStaticActressEntries() {
 }
 
 async function loadList(params = {}) {
-    const { endpoint = "dm632/cn/release", page = 1, sort = "", filters = "", category = "" } = params;
+    const { endpoint = "dm632/cn/release", page = 1, sort = "", filters = "", category = "", peopleId = "", genreId = "" } = params;
     const targetEndpoint = endpoint || category || "dm632/cn/release";
-    const url = buildListUrl(targetEndpoint, page, filters, sort);
+
+    let targetUrl = buildListUrl(targetEndpoint, page, filters, sort);
+
+    // 详情页人物/类型点击后的筛选跳转，尽量按 demo 风格工作
+    if (peopleId) {
+        targetUrl = resolveUrl(String(peopleId));
+        if (page > 1) targetUrl += targetUrl.includes("?") ? `&page=${page}` : `?page=${page}`;
+    } else if (genreId) {
+        targetUrl = resolveUrl(String(genreId));
+        if (page > 1) targetUrl += targetUrl.includes("?") ? `&page=${page}` : `?page=${page}`;
+    }
 
     try {
-        const res = await Widget.http.get(url, { headers: HEADERS });
+        const res = await Widget.http.get(targetUrl, { headers: HEADERS });
         return parseVideoList(res.data);
     } catch (e) {
         return [{ id: "err", type: "text", title: "加载失败", subTitle: e.message }];
@@ -549,6 +634,7 @@ async function searchGlobal(params = {}) {
     }
 }
 
+
 async function loadDetail(link) {
     try {
         const res = await Widget.http.get(link, { headers: HEADERS });
@@ -557,6 +643,98 @@ async function loadDetail(link) {
 
         const title = $('meta[property="og:title"]').attr('content') || $('h1').text().trim();
         let videoUrl = "";
+        const peoples = [];
+        const genreItems = [];
+        const trailers = [];
+        const seenActors = new Set();
+        const seenGenres = new Set();
+
+        const pickImageUrl = ($el) => {
+            const direct = $el.find('img').attr('data-src') || $el.find('img').attr('src') || "";
+            if (direct) return direct;
+
+            const srcset = $el.find('img').attr('srcset') || "";
+            if (srcset) {
+                const first = srcset.split(',')[0].trim().split(' ')[0];
+                if (first) return first;
+            }
+
+            const style = $el.attr('style') || $el.closest('a,div,li,figure,span').attr('style') || "";
+            const bg = style.match(/background-image\s*:\s*url\(['"]?([^'"]+)['"]?\)/i);
+            if (bg && bg[1]) return bg[1];
+            return "";
+        };
+
+        const pushActor = (name, avatar, href) => {
+            const cleanName = (name || "").trim();
+            if (!cleanName || seenActors.has(cleanName)) return;
+            seenActors.add(cleanName);
+            peoples.push({
+                id: href || cleanName,
+                title: cleanName,
+                avatar: avatar || "",
+                role: "主演"
+            });
+        };
+
+        const pushGenre = (titleText, href) => {
+            const cleanTitle = (titleText || "").trim();
+            const key = `${cleanTitle}|${href || ""}`;
+            if (!cleanTitle || seenGenres.has(key)) return;
+            seenGenres.add(key);
+            genreItems.push({
+                id: href || cleanTitle,
+                title: cleanTitle
+            });
+        };
+
+        const pickSection = (sourceHtml, startLabels, endLabels) => {
+            const start = startLabels.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+            const end = endLabels.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+            const patterns = [
+                new RegExp(`(?:${start})\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:${end})\\s*:\\s*|$)`, "i"),
+                new RegExp(`<[^>]*>(?:${start})\\s*:\\s*<\\/[^>]*>([\\s\\S]*?)(?=<[^>]*>(?:${end})\\s*:\\s*<\\/[^>]*>|$)`, "i")
+            ];
+            for (const p of patterns) {
+                const m = sourceHtml.match(p);
+                if (m && m[1]) return m[1];
+            }
+            return "";
+        };
+
+        const actorSection = pickSection(html, ["女優", "女优"], ["類型", "类型", "發行商", "发行商", "導演", "导演", "標籤", "标签"]);
+        const genreSection = pickSection(html, ["類型", "类型"], ["發行商", "发行商", "導演", "导演", "標籤", "标签", "女優", "女优"]);
+
+        const actorLinks = [];
+        const genreLinks = [];
+
+        if (actorSection) {
+            const actorBlock = Widget.html.load(`<div>${actorSection}</div>`);
+            actorBlock('a').each((_, el) => {
+                const $el = actorBlock(el);
+                const href = resolveUrl($el.attr('href') || "");
+                const name = $el.text().replace(/\s+/g, ' ').trim();
+                const img = pickImageUrl($el);
+                if (!name || !href) return;
+                if (!/\/actresses\//i.test(href) && !/\/actors\//i.test(href)) return;
+                actorLinks.push({ name, href, img });
+            });
+        }
+
+        if (genreSection) {
+            const genreBlock = Widget.html.load(`<div>${genreSection}</div>`);
+            genreBlock('a').each((_, el) => {
+                const $el = genreBlock(el);
+                const href = resolveUrl($el.attr('href') || "");
+                const name = $el.text().replace(/\s+/g, ' ').trim();
+                if (!name || !href) return;
+                if (!/\/genres\//i.test(href) && !/\/chinese-subtitle/i.test(href)) return;
+                genreLinks.push({ name, href });
+            });
+        }
+
+        actorLinks.forEach((item) => pushActor(item.name, item.img, item.href));
+        genreLinks.forEach((item) => pushGenre(item.name, item.href));
 
         $('script').each((i, el) => {
             const scriptContent = $(el).html() || "";
@@ -583,12 +761,25 @@ async function loadDetail(link) {
             if (matchSimple) videoUrl = matchSimple[1];
         }
 
+        const trailerTitle = title || $('meta[property="og:title"]').attr('content') || "";
+        const trailerUrl = buildJavTrailersUrl(trailerTitle) || buildMgstageTrailerUrl(trailerTitle);
+        if (trailerUrl) {
+            trailers.push({
+                coverUrl: buildTrailerCoverUrl(trailerTitle),
+                url: trailerUrl
+            });
+        }
+
         if (videoUrl) {
             return [{
                 id: link,
                 type: "video",
                 title: title,
                 videoUrl: videoUrl,
+                peoples: peoples,
+                genreItems: genreItems,
+                trailers: trailers,
+                mediaType: "movie",
                 playerType: "system",
                 customHeaders: {
                     "Referer": "https://missav.ai/",
