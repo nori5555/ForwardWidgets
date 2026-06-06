@@ -1,7 +1,7 @@
 WidgetMetadata = {
   id: "xunlei.subtitle",
   title: "迅雷看看 字幕",
-  version: "1.1.0",
+  version: "1.2.0",
   requiredVersion: "0.0.1",
   description: "基于迅雷看看接口的字幕搜索 - 仅支持按片名搜索",
   author: "EL",
@@ -13,6 +13,7 @@ WidgetMetadata = {
       title: "加载字幕",
       functionName: "loadSubtitle",
       type: "subtitle",
+      cacheDuration: 300,
       params: [],
     },
   ],
@@ -27,18 +28,11 @@ function getText(value) {
 function getLangTag(langStr) {
   if (!langStr) return "【其他】";
   const t = String(langStr).toLowerCase();
+  if (t.includes("双语") || t.includes("中英") || (t.includes("简") && t.includes("英")) || (t.includes("eng") && (t.includes("chi") || t.includes("chs")))) return "【双语】";
   if (t.includes("简") || t.includes("chs") || t.includes("zho") || t.includes("chi")) return "【简中】";
   if (t.includes("繁") || t.includes("cht")) return "【繁中】";
-  if (t.includes("双语") || t.includes("中英")) return "【双语】";
   if (t.includes("英") || t.includes("eng")) return "【英文】";
   return "【字幕】";
-}
-
-function formatDownload(num) {
-  const n = Number(num) || 0;
-  if (n >= 10000) return (n / 10000).toFixed(1) + "w";
-  if (n >= 1000) return (n / 1000).toFixed(1) + "k";
-  return String(n);
 }
 
 function parseDurationValue(value) {
@@ -74,15 +68,6 @@ function formatDuration(seconds) {
   const s = total % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function formatFileSize(bytes) {
-  const n = Number(bytes) || 0;
-  if (n <= 0) return "未知大小";
-  if (n >= 1024 * 1024 * 1024) return (n / 1024 / 1024 / 1024).toFixed(1) + "G";
-  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + "M";
-  if (n >= 1024) return (n / 1024).toFixed(1) + "K";
-  return `${n}B`;
 }
 
 function firstNumber(...values) {
@@ -205,6 +190,7 @@ function buildSearchKeys(params, mediaType) {
       .replace(/\b(?:EP|E|S|SEASON)\s*\d{1,3}\b/gi, "")
       .replace(/[-_:\s]+$/g, "")
       .replace(/^[\s\-_:]+|[\s\-_:]+$/g, "")
+      .replace(/[^ -~s]+/g, "")
       .trim();
     const compactCode = avCode.replace(/[-_ ]/g, "");
     keys.push(avCode);
@@ -240,7 +226,7 @@ function buildSearchKeys(params, mediaType) {
 
   keys.push(displayText || titleText || rawText);
   keys.push(titleText || rawText);
-  return [...new Set(keys)].filter(k => k.length >= 2);
+  return [...new Set(keys)].filter(k => k.length >= 2 && (!isAvTitle || /[a-zA-Z0-9]/.test(k)));
 }
 
 function scoreItem(item, params, mediaType) {
@@ -250,18 +236,17 @@ function scoreItem(item, params, mediaType) {
   const episode = Number(params?.episode);
   const sStr = !Number.isNaN(season) && season > 0 ? String(season).padStart(2, "0") : "";
   const eStr = !Number.isNaN(episode) && episode > 0 ? String(episode).padStart(2, "0") : "";
-  const text = (getText(item?.name) + " " + getText(item?.langs) + " " + getText(item?.ext)).toLowerCase();
+  const text = (getText(item?.Name || item?.name) + " " + getText(item?.Langs || item?.langs) + " " + getText(item?.Ext || item?.ext)).toLowerCase();
   const titleLoose = title.replace(/[-_\s.]/g, "");
   const textLoose = text.replace(/[-_\s.]/g, "");
   const code = avCode || extractSearchCode(title);
   const codeLoose = code ? code.replace(/[-_ ]/g, "") : "";
-  let score = Number(item?.cid_match ? 100000 : 0) + (Number(item?.down_count) || 0) / 10000;
+  let score = (Number(item?.down_count) || 0) / 10000;
 
   if (code && (text.includes(code.toLowerCase()) || textLoose.includes(codeLoose))) score += 25000;
   score += Math.max(0, Number(item?.score) || 0);
   score += Math.max(0, Number(item?.fingerprintScore) || 0);
   if (Number(item?.duration) > 0) score += 50;
-  if (Number(item?.file_size) > 0) score += Math.min(Number(item?.file_size) / 1024 / 1024, 20);
 
   if (mediaType === "tv") {
     if (sStr && eStr && text.includes(`s${sStr}e${eStr}`)) score += 10000;
@@ -300,7 +285,7 @@ async function searchSub(key) {
 }
 
 function normalizeResult(item) {
-  const duration = firstNumber(
+  let duration = firstNumber(
     parseDurationValue(item?.Duration),
     parseDurationValue(item?.duration),
     parseDurationValue(item?.TimeLength),
@@ -316,37 +301,18 @@ function normalizeResult(item) {
     parseDurationValue(item?.PlayTime),
     parseDurationValue(item?.play_time)
   );
-
-  const file_size = firstNumber(
-    item?.FileSize,
-    item?.file_size,
-    item?.Size,
-    item?.size,
-    item?.FileSizeBytes,
-    item?.fileSize,
-    item?.filesize,
-    item?.SubSize,
-    item?.sub_size,
-    item?.Subsize,
-    item?.subsize,
-    item?.LengthBytes,
-    item?.length_bytes,
-    item?.Bytes,
-    item?.bytes
-  );
+  if (duration > 86400) duration = Math.round(duration / 1000);
 
   return {
     id: item?.Url || item?.url || item?.Id || item?.id || item?.Name || item?.name || Math.random().toString(36).slice(2),
     name: getText(item?.Name || item?.name || item?.Title || item?.title || item?.FileName || item?.filename || "迅雷字幕"),
-    langs: getText(item?.Langs || item?.langs || item?.Languages?.join?.(",") || item?.Languages || item?.lang || item?.language || ""),
-    ext: getText(item?.Ext || item?.ext || item?.Format || item?.format || getExt(item?.Name || item?.name) || ".srt"),
+    langs: getText(item?.Langs || item?.langs || item?.Languages?.join?.(",") || item?.Languages || item?.lang || item?.language || item?.languages?.join?.(",") || item?.languages || ""),
+    ext: getText(item?.Ext || item?.ext || item?.Format || item?.format || getExt(item?.Name || item?.name) || ".srt").replace(/^\.?/, "."),
     url: getText(item?.Url || item?.url),
     down_count: Number(item?.DownCount || item?.down_count || item?.Download || item?.download || item?.Downloads || item?.downloads || 0),
-    cid_match: Boolean(item?.CidMatch ?? item?.cid_match),
     duration,
-    file_size,
     score: Number(item?.Score || item?.score || 0),
-    fingerprintScore: Number(item?.FingerprintfScore || item?.fingerprintfScore || item?.FingerprintScore || item?.fingerprintScore || 0),
+    fingerprintScore: Number(item?.FingerprintfScore || item?.fingerprintfScore || item?.FingerprintScore || item?.fingerprintScore || item?.fingerprintf_score || 0),
   };
 }
 
@@ -380,7 +346,10 @@ async function loadSubtitle(params) {
     const rawTitleLoose = titleLower.replace(/[-_\s.]/g, "");
 
     let matched = allSubs.filter(item => {
-      const text = (getText(item?.name) + " " + getText(item?.langs) + " " + getText(item?.ext)).toLowerCase();
+      const rawName = item?.Name || item?.name || "";
+      const rawLangs = item?.Langs || item?.langs || "";
+      const rawExt = item?.Ext || item?.ext || "";
+      const text = (getText(rawName) + " " + getText(rawLangs) + " " + getText(rawExt)).toLowerCase();
       const textLoose = text.replace(/[-_\s.]/g, "");
       if (avCode && (text.includes(avCode.toLowerCase()) || textLoose.includes(avCodeLoose))) return true;
       return text.includes(matchText) || textLoose.includes(titleLoose) || text.includes(titleLower) || textLoose.includes(rawTitleLoose) || matchText.includes(text);
@@ -404,7 +373,7 @@ async function loadSubtitle(params) {
   const existKey = new Set();
   const maxResultCount = 10;
 
-  for (const { item } of scored) {
+  for (const { item, score } of scored) {
     if (result.length >= maxResultCount) break;
     if (!item.url) continue;
 
@@ -412,24 +381,15 @@ async function loadSubtitle(params) {
     if (existKey.has(dedupeKey)) continue;
     existKey.add(dedupeKey);
 
-    const langTag = avCode ? "【简中】" : getLangTag(item.langs);
+    const langTag = avCode && !item.langs ? "【简中】" : getLangTag(item.langs);
     const cleanName = item.name.replace(/\.(srt|ass|ssa|zip|rar|7z)$/i, "");
     const ext = getExt(item.name) || item.ext || ".srt";
     const durationText = item.duration > 0 ? formatDuration(item.duration) : "";
-    const sizeText = item.file_size > 0 ? formatFileSize(item.file_size) : "";
-    const extraParts = [];
-    if (durationText) extraParts.push(`时长${durationText}`);
-    if (sizeText) extraParts.push(`大小${sizeText}`);
-    const extraText = extraParts.join(" | ");
-    const extraRank = (Number(item?.score) || 0) + (Number(item?.fingerprintScore) || 0);
-
     result.push({
       id: item.id,
-      title: `${langTag}${cleanName}${ext}`,
-      subTitle: extraText,
-      description: extraText,
-      lang: avCode ? "简中" : (item.langs || "未知"),
-      count: (item.cid_match ? 100000 : 0) + extraRank,
+      title: `${langTag}${cleanName}${ext}${durationText ? ` ${durationText}` : ""}`,
+      lang: item.langs || "未知",
+      count: Math.round(score),
       url: item.url
     });
   }
