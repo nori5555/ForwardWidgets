@@ -40,6 +40,15 @@
       "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/pron.js"
     },
     {
+      "id": "nori5555.widget.x",
+      "title": "xvideo",
+      "description": "pron",
+      "requiredVersion": "0.0.1",
+      "version": "1.0.0",
+      "author": "nori5555",
+      "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/xvideo.js"
+    },   
+    {
       "id": "nori5555.widget.hanime",
       "title": "Hanime",
       "description": "Hanime",
