@@ -826,11 +826,33 @@ WidgetMetadata = {
     id: 'XVideos',
     title: 'XVideos',
     description: 'XVideos 视频资源浏览模块，支持最新、热门、分类、标签、频道和明星筛选',
-    version: "1.0.0",
+    version: "1.4.0",
     requiredVersion: '0.0.1',
     author: "网络|EL",
     site: 'https://www.xvideos.com',
     detailCacheDuration: 3600,
+    search: {
+        title: "全站搜索",
+        functionName: "getSearchResults",
+        params: [
+            { name: "keyword", title: "关键词", type: "input", value: "" },
+            {
+                name: "sort_by",
+                title: "排序方式",
+                type: "enumeration",
+                value: "",
+                enumOptions: [
+                    { title: "相关度", value: "" },
+                    { title: "最新", value: "uploaddate" },
+                    { title: "评分", value: "rating" },
+                    { title: "时长", value: "length" },
+                    { title: "播放量", value: "views" },
+                    { title: "随机", value: "random" }
+                ]
+            },
+            { name: "page", title: "页码", type: "page" }
+        ]
+    },
     modules: [
         {
             id: 'xvideos.new',
@@ -866,8 +888,10 @@ WidgetMetadata = {
                     name: 'archive',
                     title: "月份",
                     type: 'input',
-                    value: '2026-04',
+                    value: '2026-06',
                     placeholders: [
+                        { title: '2026-06', value: '2026-06' },
+                        { title: '2026-05', value: '2026-05' },
                         { title: '2026-04', value: '2026-04' },
                         { title: '2026-03', value: '2026-03' },
                         { title: '2026-02', value: '2026-02' },
@@ -1084,6 +1108,19 @@ WidgetMetadata = {
                     ]
                 },
                 {
+                    name: "sort_by",
+                    title: "排序方式",
+                    type: "enumeration",
+                    value: "",
+                    enumOptions: [
+                        { title: "相关度", value: "" },
+                        { title: "最新", value: "uploaddate" },
+                        { title: "评分", value: "rating" },
+                        { title: "时长", value: "length" },
+                        { title: "播放量", value: "views" }
+                    ]
+                },
+                {
                     name: 'page',
                     title: "页码",
                     type: 'page',
@@ -1149,6 +1186,19 @@ WidgetMetadata = {
                         { title: '扩张', value: 'gapes' },
                         { title: '熟女', value: 'mature' },
                         { title: '按摩', value: 'massage' }
+                    ]
+                },
+                {
+                    name: "sort_by",
+                    title: "排序方式",
+                    type: "enumeration",
+                    value: "",
+                    enumOptions: [
+                        { title: "相关度", value: "" },
+                        { title: "最新", value: "uploaddate" },
+                        { title: "评分", value: "rating" },
+                        { title: "时长", value: "length" },
+                        { title: "播放量", value: "views" }
                     ]
                 },
                 {
@@ -1491,6 +1541,40 @@ WidgetMetadata = {
                     value: '0'
                 }
             ]
+        },
+        {
+            id: 'xvideos.search',
+            title: "🔍 全站搜索",
+            description: "XVideos 全站搜索",
+            functionName: 'getSearchResults',
+            params: [
+                {
+                    name: 'keyword',
+                    title: "关键词",
+                    type: 'input',
+                    value: ''
+                },
+                {
+                    name: "sort_by",
+                    title: "排序方式",
+                    type: "enumeration",
+                    value: "",
+                    enumOptions: [
+                        { title: "相关度", value: "" },
+                        { title: "最新", value: "uploaddate" },
+                        { title: "评分", value: "rating" },
+                        { title: "时长", value: "length" },
+                        { title: "播放量", value: "views" },
+                        { title: "随机", value: "random" }
+                    ]
+                },
+                {
+                    name: 'page',
+                    title: "页码",
+                    type: 'page',
+                    value: '0'
+                }
+            ]
         }
     ]
 };
@@ -1650,9 +1734,14 @@ async function getCategoryList(params) {
     const page = parsePage(params);
     try {
         const categoryPath = params.category || '';
-        const url = categoryPath.startsWith('lang/') || categoryPath.startsWith('gay') || categoryPath.startsWith('shemale')
+        const sortBy = params.sort_by || '';
+        let url = categoryPath.startsWith('lang/') || categoryPath.startsWith('gay') || categoryPath.startsWith('shemale')
             ? `${BASE_URL}/${categoryPath}`
             : `${BASE_URL}/${categoryPath}`;
+        if (sortBy && categoryPath.startsWith('c/')) {
+            const slug = categoryPath.slice(2);
+            url = `${BASE_URL}/c/s:${sortBy}/${slug}`;
+        }
         const finalUrl = page > 0 && categoryPath.startsWith('c/') ? `${url}/${page}` : url;
         const $ = await widgetAPI.getHtml(finalUrl);
         const list = Array.from($('#content .thumb-block:not(.thumb-ad)')).map((el)=>{
@@ -1676,7 +1765,9 @@ async function getCategoryList(params) {
 async function getTagList(params) {
     const page = parsePage(params);
     try {
-        const url = `${BASE_URL}/tags/${params.tag}${page > 0 ? `/${page}` : ''}`;
+        const sortBy = params.sort_by || '';
+        const tagPath = sortBy ? `s:${sortBy}/${params.tag}` : params.tag;
+        const url = `${BASE_URL}/tags/${tagPath}${page > 0 ? `/${page}` : ''}`;
         const $ = await widgetAPI.getHtml(url);
         const list = Array.from($('#content .thumb-block:not(.thumb-ad)')).map((el)=>{
             const $el = $(el);
@@ -1696,6 +1787,41 @@ async function getTagList(params) {
         return [];
     }
 }
+
+// ============================================================
+//  getSearchResults — 全站搜索
+// ============================================================
+async function getSearchResults(params = {}) {
+    try {
+        const keyword = (params.keyword || "").trim();
+        if (!keyword) throw new Error("请输入搜索关键词");
+        const sortBy = params.sort_by || "";
+        const page = Math.max(0, Number(params.page) || 0);
+        let url = `${BASE_URL}/?k=${encodeURIComponent(keyword)}`;
+        const qs = [];
+        if (sortBy) qs.push(`sort=${sortBy}`);
+        if (page > 0) qs.push(`page=${page + 1}`);
+        if (qs.length > 0) url += "&" + qs.join("&");
+        const $ = await widgetAPI.getHtml(url);
+        const list = Array.from($('#content .thumb-block:not(.thumb-ad)')).map((el)=>{
+            const $el = $(el);
+            const $title = $el.find('.title a');
+            let link = $title.attr('href');
+            if (!link) return null;
+            link = formatUrl(link);
+            const backdropPath = $el.find('.thumb img').attr('data-src');
+            const title = $title.text().trim();
+            const result = { id: link, type: 'url', mediaType: 'movie', link, title, backdropPath, posterPath: backdropPath };
+            if (backdropPath) result.previewUrl = generateVideoPreviewUrl(backdropPath);
+            return result;
+        });
+        return list.filter((item)=>null !== item);
+    } catch (error) {
+        console.error("搜索失败", error);
+        return [];
+    }
+}
+
 const VIDEO_URL_KEYWORDS = [
     'html5player.setVideoUrlHigh',
     'html5player.setVideoHLS',
@@ -1718,16 +1844,60 @@ async function loadDetail(url) {
         const ldJsonData = JSON.parse(ldJson);
         videoUrl || (videoUrl = ldJsonData.contentUrl);
         if (!videoUrl) throw new Error("未找到视频资源");
+
+        // 封面
+        const cover = ldJsonData.thumbnailUrl ? ldJsonData.thumbnailUrl[0] : '';
+
+        // 时长：ISO 8601 PT格式 → 可读格式
+        function _formatXV(dur) {
+            if (!dur) return '';
+            const m = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+            if (!m) return '';
+            const h = parseInt(m[1] || 0), min = parseInt(m[2] || 0), s = parseInt(m[3] || 0);
+            if (h > 0) return h + ':' + String(min).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+            return min + ':' + String(s).padStart(2,'0');
+        }
+
+        // 演员/上传者
+        const peoples = [];
+        if (ldJsonData.author && ldJsonData.author.name) {
+            peoples.push({ id: 'channel:' + ldJsonData.author.name, title: ldJsonData.author.name, role: 'actor' });
+        }
+
+        // 分类/标签
+        const genreItems = [];
+        if (Array.isArray(ldJsonData.genre)) {
+            ldJsonData.genre.forEach(function(g) {
+                if (g) genreItems.push({ id: g, title: g });
+            });
+        }
+
+        // 预告片
+        const trailerUrl = videoUrl;
+        const trailers = [{ url: trailerUrl, coverUrl: cover }];
+
         const result = {
             id: url,
-            type: 'detail',
+            type: 'url',
             mediaType: 'movie',
             link: url,
-            videoUrl,
+            videoUrl: videoUrl,
+            customHeaders: {
+                "Referer": url,
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+            },
+            playerType: "app",
             title: ldJsonData.name,
+            coverUrl: cover,
+            posterPath: cover,
+            backdropPath: cover,
+            backdropPaths: cover ? [cover] : undefined,
             description: ldJsonData.description,
-            backdropPath: ldJsonData.thumbnailUrl[0],
-            releaseDate: ldJsonData.uploadDate
+            durationText: _formatXV(ldJsonData.duration),
+            releaseDate: ldJsonData.uploadDate,
+            peoples: peoples.length > 0 ? peoples : undefined,
+            genreItems: genreItems.length > 0 ? genreItems : undefined,
+            trailers: trailers
         };
         try {
             var _videoRelated_text_match;
