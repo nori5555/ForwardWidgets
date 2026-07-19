@@ -47,6 +47,15 @@
       "version": "1.0.0",
       "author": "nori5555",
       "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/xvideo.js"
+    },
+    {
+      "id": "nori5555.widget.han",
+      "title": "hanime",
+      "description": "han",
+      "requiredVersion": "0.0.1",
+      "version": "1.0.0",
+      "author": "nori5555",
+      "url": "https://raw.githubusercontent.com/nori5555/ForwardWidgets/refs/heads/main/han.js"
     },   
     {
       "id": "nori5555.widget.hanime",
